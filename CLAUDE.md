@@ -100,9 +100,21 @@ Before saying a task is done: ruff, pyright and pytest all pass.
 
 ## Git / CI
 
-- GitHub, public repo. Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`, `test:`).
+Full process: `docs/releasing.md`. Summary:
+
+- GitHub, public repo. Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`, `test:`);
+  PR titles too, since feature PRs are squash-merged and `CHANGELOG.md` is generated from them.
 - Small focused commits; don't commit unless the user asks.
-- GitHub Actions:
-  - `ci.yml` on push/PR: matrix `windows-latest` + `ubuntu-latest`: ruff, ruff format check, pyright, pytest.
-  - `release.yml` on tag `v*`: PyInstaller builds for Windows and Linux, attached to a GitHub Release.
+- Branches: `dev` (default, alpha line), `main` (beta/rc, then the stable release),
+  `release/X.Y` (only for hotfixes while a beta is on `main`). Work happens on `feat/*` / `fix/*`
+  branches off `dev`, merged by PR; never push directly to `dev`, `main` or `release/*`.
+- Never rebase or force-push automation branches (`release-prep/*`, `merge-back/*`, `backport/*`,
+  `bump/*`); resolve their conflicts by merging. Rebasing own feature branches is fine.
+- Versions: PEP 440 (`0.5.0a1`, `0.5.0b1`, `0.5.0rc1`, `0.5.0`), static in `pyproject.toml`.
+  Never bump versions or create `v*` tags by hand: releases go through the
+  `prepare-release` workflow; the rules live in `scripts/release_tools` (unit-tested).
+- GitHub Actions: `ci.yml` (ruff, format, pyright, pytest on Windows + Ubuntu) on PRs and pushes;
+  `dev-build.yml` (artifacts per dev push); release flow `prepare-release` → `tag-release` →
+  `release`; `merge-back` (main → dev); `backport` (release/X.Y → main). Writing workflows
+  act as a GitHub App; protection lives in `.github/rulesets/` (applied by `scripts/github/`).
 - Never commit secrets, captures, or local config.

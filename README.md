@@ -70,6 +70,12 @@ uv run pytest -m hardware         # with the strip plugged in
 
 Want to help with the protocol? See [docs/capture-guide.md](docs/capture-guide.md).
 
+### Branches and releases
+
+`dev` (the default branch) is the alpha line, `main` is the beta line; stable versions are
+tagged releases. Download builds from [Releases](../../releases); see
+[docs/releasing.md](docs/releasing.md) for the full flow. PRs go into `dev`.
+
 ## License
 
 [MIT](LICENSE)
