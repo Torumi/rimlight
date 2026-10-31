@@ -1,0 +1,24 @@
+# Python / uv
+__pycache__/
+*.py[oc]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Build output (uv build, PyInstaller)
+build/
+dist/
+*.spec
+
+# USB captures stay local; only small extracted fixtures in tests/fixtures/ are committed
+captures/
+*.pcap
+*.pcapng
+
+# Local config and editor state
+rimlight.toml
+.env
+.vscode/
+.idea/
+.claude/settings.local.json
