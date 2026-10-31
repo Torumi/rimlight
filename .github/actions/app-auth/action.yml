@@ -1,0 +1,39 @@
+name: Act as the release App
+description: >
+  Mint a GitHub App installation token and configure git and gh to act as the App's bot user.
+  Pushes and PRs made with this token trigger other workflows (GITHUB_TOKEN's do not), and the
+  App is the bypass actor in the tag and automation-branch rulesets. Exports GH_TOKEN.
+
+inputs:
+  client-id:
+    description: The App's client ID (repository variable APP_CLIENT_ID)
+    required: true
+  private-key:
+    description: The App's private key (repository secret APP_PRIVATE_KEY)
+    required: true
+
+outputs:
+  token:
+    description: Installation access token
+    value: ${{ steps.token.outputs.token }}
+
+runs:
+  using: composite
+  steps:
+    - id: token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ inputs.client-id }}
+        private-key: ${{ inputs.private-key }}
+
+    - name: Configure git and gh
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        SLUG: ${{ steps.token.outputs.app-slug }}
+      run: |
+        user_id="$(gh api "/users/${SLUG}%5Bbot%5D" --jq .id)"
+        git config --global user.name "${SLUG}[bot]"
+        git config --global user.email "${user_id}+${SLUG}[bot]@users.noreply.github.com"
+        echo "GH_TOKEN=${GH_TOKEN}" >> "$GITHUB_ENV"
+        gh auth setup-git

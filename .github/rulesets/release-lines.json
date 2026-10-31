@@ -1,0 +1,15 @@
+{
+  "name": "release-lines",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [
+    { "actor_id": "__APP_ID__", "actor_type": "Integration", "bypass_mode": "always" }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/release/**"],
+      "exclude": []
+    }
+  },
+  "rules": [{ "type": "deletion" }]
+}

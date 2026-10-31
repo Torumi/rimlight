@@ -1,0 +1,13 @@
+{
+  "name": "core-branches",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/dev", "refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [{ "type": "deletion" }]
+}

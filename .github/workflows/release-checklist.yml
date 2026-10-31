@@ -1,0 +1,33 @@
+name: Release checklist
+
+# Required status check "checklist": fails while a release-prep PR has unticked checklist items.
+# On every other PR the job is skipped, which GitHub counts as passing.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  checklist:
+    if: startsWith(github.head_ref, 'release-prep/')
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      - name: Check
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n' "$BODY" > body.md
+          uv run python -m release_tools check-checklist --body-file body.md

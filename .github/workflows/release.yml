@@ -1,5 +1,8 @@
 name: Release
 
+# A pushed v* tag (normally from tag-release.yml) is validated again, built, and published as a
+# GitHub pre-release (alpha/beta/rc) or the latest release (final/patch).
+
 on:
   push:
     tags: ["v*"]
@@ -8,82 +11,69 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows-x64
-          - os: ubuntu-latest
-            platform: linux-x64
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
+  verify:
+    runs-on: ubuntu-latest
     env:
-      PKG: rimlight-${{ github.ref_name }}-${{ matrix.platform }}
+      PYTHONPATH: scripts
+    outputs:
+      prerelease: ${{ steps.check.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
-      - name: Install
-        run: uv sync --locked --no-dev
+      - run: uv sync --locked
 
-      - name: Build GUI
-        run: >
-          uv run --with pyinstaller pyinstaller --noconfirm --clean --windowed
-          --name rimlight --copy-metadata rimlight
-          packaging/pyinstaller/rimlight_gui.py
+      - id: check
+        run: uv run python -m release_tools check-tag "$GITHUB_REF_NAME"
 
-      - name: Build CLI
-        run: >
-          uv run --with pyinstaller pyinstaller --noconfirm --clean --console
-          --name rimlight-cli --copy-metadata rimlight --hidden-import hid
-          packaging/pyinstaller/rimlight_cli.py
+  build:
+    needs: verify
+    uses: ./.github/workflows/build.yml
+    with:
+      name: rimlight-${{ github.ref_name }}
+      ref: ${{ github.ref_name }}
 
-      - name: Assemble
-        run: |
-          mkdir -p "out/$PKG"
-          cp -r dist/rimlight dist/rimlight-cli README.md LICENSE "out/$PKG/"
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            cp packaging/linux/99-rimlight.rules "out/$PKG/"
-          fi
-
-      - name: Archive (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: Compress-Archive -Path "out/$env:PKG" -DestinationPath "out/$env:PKG.zip"
-
-      - name: Archive (Linux)
-        if: runner.os == 'Linux'
-        run: tar -C out -czf "out/$PKG.tar.gz" "$PKG"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.PKG }}
-          path: |
-            out/*.zip
-            out/*.tar.gz
-          if-no-files-found: error
-
-  release:
-    needs: build
+  publish:
+    needs: [verify, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Create GitHub Release
+      - name: Release notes
+        env:
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            # Changes since the previous tag of any kind.
+            uv run --only-dev git-cliff --ignore-tags '^$' --latest --strip all -o notes.md
+          else
+            # Changes since the previous stable release; pre-release tags are ignored.
+            uv run --only-dev git-cliff --latest --strip all -o notes.md
+          fi
+
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "${{ github.ref_name }}" artifacts/*
-          --repo "${{ github.repository }}" --title "${{ github.ref_name }}"
-          --generate-notes --prerelease
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then flag=--prerelease; else flag=--latest; fi
+          gh release create "$GITHUB_REF_NAME" artifacts/* \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag "$flag"

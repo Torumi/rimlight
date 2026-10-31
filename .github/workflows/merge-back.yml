@@ -1,0 +1,108 @@
+name: Merge back
+
+# Every push to main opens a merge-back/<sha> PR into dev, so fixes made on main reach dev.
+# Conflicts that only touch the version line (pyproject.toml), uv.lock or the generated
+# CHANGELOG.md are resolved automatically in dev's favour and the PR auto-merges with a merge
+# commit. Anything else is left for a human: see docs/releasing.md.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: merge-back
+  cancel-in-progress: false
+
+jobs:
+  merge-back:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/app-auth
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      - name: Merge main into dev
+        id: merge
+        run: |
+          if git merge-base --is-ancestor origin/main origin/dev; then
+            echo "dev already contains main"
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+          branch="merge-back/${GITHUB_SHA::7}"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          git switch -c "$branch" origin/dev
+          resolved=true
+          if ! git merge --no-ff --no-edit -m "chore: merge main into dev" origin/main; then
+            for file in $(git diff --name-only --diff-filter=U); do
+              case "$file" in
+                pyproject.toml)
+                  uv run --no-sync python -m release_tools resolve-versions pyproject.toml \
+                    || resolved=false ;;
+                uv.lock | CHANGELOG.md)
+                  git checkout --ours -- "$file" ;;
+                *)
+                  resolved=false ;;
+              esac
+            done
+            if [ "$resolved" = "true" ]; then
+              uv lock
+              git add pyproject.toml uv.lock CHANGELOG.md
+              git commit --no-edit
+            else
+              git merge --abort
+              # Leave the conflict for a human: the PR shows main's side against dev.
+              git switch -C "$branch" origin/main
+            fi
+          fi
+          echo "resolved=$resolved" >> "$GITHUB_OUTPUT"
+          git push origin "$branch"
+
+      - name: Open PR
+        if: steps.merge.outputs.needed == 'true'
+        env:
+          BRANCH: ${{ steps.merge.outputs.branch }}
+          RESOLVED: ${{ steps.merge.outputs.resolved }}
+        run: |
+          if [ "$RESOLVED" = "true" ]; then
+            body="Brings main (${GITHUB_SHA::7}) into dev. Auto-merges with a merge commit once CI passes."
+          else
+            body=$(cat <<EOF
+          Brings main (${GITHUB_SHA::7}) into dev. **Conflicts need a human.** Resolve them by merging
+          (never rebase this branch):
+
+          \`\`\`
+          git fetch origin
+          git switch $BRANCH
+          git merge origin/dev
+          # resolve, keeping dev's version line, then:
+          git commit && git push
+          \`\`\`
+
+          Then merge this PR with **Create a merge commit**.
+          EOF
+            )
+          fi
+          gh pr create --base dev --head "$BRANCH" \
+            --title "chore: merge main into dev" --body "$body"
+          if [ "$RESOLVED" = "true" ]; then
+            gh pr merge "$BRANCH" --auto --merge
+          fi

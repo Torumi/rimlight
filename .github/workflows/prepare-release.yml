@@ -1,0 +1,114 @@
+name: Prepare release
+
+# Run from the Actions tab on the branch to release from (see docs/releasing.md):
+#   alpha: dev | beta: dev (promotion, starts a beta line) or main | rc, final: main
+#   patch: main, or release/X.Y while a beta line is in progress on main
+# Bumps the version, regenerates CHANGELOG.md and opens a release-prep/<version> PR.
+# Merging that PR tags the release (tag-release.yml).
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: Release kind
+        type: choice
+        options: [alpha, beta, rc, final, patch]
+        required: true
+      version:
+        description: Explicit version override (PEP 440); leave empty to compute it
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/app-auth
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      - id: plan
+        env:
+          KIND: ${{ inputs.kind }}
+          VERSION_OVERRIDE: ${{ inputs.version }}
+        run: >
+          uv run python -m release_tools plan
+          --kind "$KIND" --branch "$GITHUB_REF_NAME" --version "$VERSION_OVERRIDE"
+
+      - name: Commit release
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          HEAD_BRANCH: ${{ steps.plan.outputs.head }}
+          PRERELEASE: ${{ steps.plan.outputs.prerelease }}
+        run: |
+          git switch -c "$HEAD_BRANCH"
+          uv version "$VERSION" --no-sync
+          if [ "$PRERELEASE" = "true" ]; then
+            uv run git-cliff -o CHANGELOG.md
+          else
+            uv run git-cliff --tag "$TAG" -o CHANGELOG.md
+          fi
+          git add pyproject.toml uv.lock CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::error::Nothing to release: no version or changelog change since the last release."
+            exit 1
+          fi
+          git commit -m "chore: release $VERSION"
+          git push origin "$HEAD_BRANCH"
+
+      - name: Open release PR
+        env:
+          KIND: ${{ inputs.kind }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          BASE: ${{ steps.plan.outputs.base }}
+          HEAD_BRANCH: ${{ steps.plan.outputs.head }}
+          PROMOTION: ${{ steps.plan.outputs.promotion }}
+        run: |
+          {
+            echo "Release **$VERSION** ($KIND). Merging this PR tags \`v$VERSION\` and publishes it."
+            echo
+            if [ "$PROMOTION" = "true" ]; then
+              echo "> [!IMPORTANT]"
+              echo "> Promotion of dev to main: merge with **Create a merge commit**, not squash."
+            else
+              echo "Merge with **Squash and merge**."
+            fi
+            case "$KIND" in
+              final) section="Stable release" ;;
+              patch) section="Hotfix" ;;
+              *) section="" ;;
+            esac
+            if [ -n "$section" ]; then
+              echo
+              echo "## Release checklist"
+              echo
+              echo "Tick every item before merging; the \`checklist\` check blocks the merge until then."
+              echo
+              awk -v s="## $section" '$0 == s {on=1; next} /^## / {on=0} on && /^- \[ \]/' \
+                docs/release-checklist.md
+            fi
+          } > body.md
+          gh pr create --base "$BASE" --head "$HEAD_BRANCH" \
+            --title "chore: release $VERSION" --body-file body.md

@@ -1,13 +1,16 @@
 name: CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches: [dev, main, "release/**"]
 
 permissions:
   contents: read
 
 jobs:
+  # Job name and matrix make the required status checks "check (windows-latest)" and
+  # "check (ubuntu-latest)" in .github/rulesets/protected-branches.json. Keep them in sync.
   check:
     strategy:
       fail-fast: false

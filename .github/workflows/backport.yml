@@ -1,0 +1,64 @@
+name: Backport
+
+# A fix merged into release/X.Y (hotfix during a beta line) is cherry-picked into main as a
+# backport/<pr> PR. If the cherry-pick conflicts, an issue is opened instead.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: ["release/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  backport:
+    if: >
+      github.event.pull_request.merged
+      && !startsWith(github.event.pull_request.head.ref, 'release-prep/')
+      && !startsWith(github.event.pull_request.head.ref, 'backport/')
+    runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      BASE: ${{ github.event.pull_request.base.ref }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/app-auth
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Cherry-pick into main
+        run: |
+          branch="backport/$PR_NUMBER"
+          git switch -c "$branch" origin/main
+          parents="$(git rev-list --parents -n 1 "$MERGE_SHA" | wc -w)"
+          mainline=()
+          if [ "$parents" -gt 2 ]; then mainline=(-m 1); fi
+          if git cherry-pick -x "${mainline[@]}" "$MERGE_SHA"; then
+            git push origin "$branch"
+            gh pr create --base main --head "$branch" \
+              --title "$PR_TITLE (backport #$PR_NUMBER)" \
+              --body "Backport of #$PR_NUMBER from \`$BASE\` to main. Merge with **Squash and merge**."
+          else
+            git cherry-pick --abort
+            gh issue create --title "Backport #$PR_NUMBER to main failed" --body "$(cat <<EOF
+          Cherry-picking #$PR_NUMBER ($MERGE_SHA) from \`$BASE\` onto main conflicts.
+          Backport it by hand:
+
+          \`\`\`
+          git fetch origin
+          git switch -c fix/backport-$PR_NUMBER origin/main
+          git cherry-pick -x ${mainline[*]} $MERGE_SHA
+          \`\`\`
+
+          Then open a PR into main.
+          EOF
+          )"
+          fi

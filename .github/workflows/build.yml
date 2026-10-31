@@ -1,0 +1,87 @@
+name: Build
+
+# Reusable PyInstaller build for Windows and Linux, called by dev-build.yml and release.yml.
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Package name without platform suffix, e.g. rimlight-v0.5.0
+        type: string
+        required: true
+      ref:
+        description: Commit or tag to build
+        type: string
+        required: true
+      retention-days:
+        description: Artifact retention; 0 uses the repository default
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+          - os: ubuntu-latest
+            platform: linux-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      PKG: ${{ inputs.name }}-${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --locked --no-dev
+
+      - name: Build GUI
+        run: >
+          uv run --with pyinstaller pyinstaller --noconfirm --clean --windowed
+          --name rimlight --copy-metadata rimlight
+          packaging/pyinstaller/rimlight_gui.py
+
+      - name: Build CLI
+        run: >
+          uv run --with pyinstaller pyinstaller --noconfirm --clean --console
+          --name rimlight-cli --copy-metadata rimlight --hidden-import hid
+          packaging/pyinstaller/rimlight_cli.py
+
+      - name: Assemble
+        run: |
+          mkdir -p "out/$PKG"
+          cp -r dist/rimlight dist/rimlight-cli README.md LICENSE "out/$PKG/"
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            cp packaging/linux/99-rimlight.rules "out/$PKG/"
+          fi
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "out/$env:PKG" -DestinationPath "out/$env:PKG.zip"
+
+      - name: Archive (Linux)
+        if: runner.os == 'Linux'
+        run: tar -C out -czf "out/$PKG.tar.gz" "$PKG"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG }}
+          path: |
+            out/*.zip
+            out/*.tar.gz
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention-days }}

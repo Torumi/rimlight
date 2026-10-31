@@ -1,0 +1,35 @@
+name: Dev build
+
+# Every push to dev produces downloadable alpha builds (workflow artifacts, not a release).
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-build
+  cancel-in-progress: true
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.meta.outputs.name }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+
+      - id: meta
+        run: echo "name=rimlight-$(uv version --short)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: meta
+    uses: ./.github/workflows/build.yml
+    with:
+      name: ${{ needs.meta.outputs.name }}
+      ref: ${{ github.sha }}
+      retention-days: 14

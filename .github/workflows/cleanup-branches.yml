@@ -1,0 +1,33 @@
+name: Clean up automation branches
+
+# Automation branches are protected from deletion except by the App (rulesets), so the App
+# deletes them once their PR is closed.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  delete:
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository
+      && (startsWith(github.event.pull_request.head.ref, 'release-prep/')
+        || startsWith(github.event.pull_request.head.ref, 'merge-back/')
+        || startsWith(github.event.pull_request.head.ref, 'backport/')
+        || startsWith(github.event.pull_request.head.ref, 'bump/'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Delete branch
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          REF: ${{ github.event.pull_request.head.ref }}
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$REF"

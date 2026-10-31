@@ -1,0 +1,24 @@
+{
+  "name": "automation-branches",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [
+    { "actor_id": "__APP_ID__", "actor_type": "Integration", "bypass_mode": "always" }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/heads/release-prep/**",
+        "refs/heads/merge-back/**",
+        "refs/heads/backport/**",
+        "refs/heads/bump/**"
+      ],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "creation" },
+    { "type": "non_fast_forward" },
+    { "type": "deletion" }
+  ]
+}

@@ -1,0 +1,105 @@
+name: Tag release
+
+# When a release-prep/<version> PR is merged: tag the merge result (which triggers release.yml),
+# open the post-release version bump PR on dev, and retire release/X.Y branches after a final.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'release-prep/')
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: scripts
+      BASE: ${{ github.event.pull_request.base.ref }}
+      HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/app-auth
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      - id: meta
+        run: |
+          version="$(uv version --short)"
+          if [ "$HEAD_BRANCH" != "release-prep/$version" ]; then
+            echo "::error::$HEAD_BRANCH was merged but the version on $BASE is $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Re-check checklist
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n' "$BODY" > body.md
+          uv run python -m release_tools check-checklist --body-file body.md
+
+      - name: Promotion must be a merge commit
+        if: endsWith(steps.meta.outputs.version, 'b1')
+        run: |
+          parents="$(git rev-list --parents -n 1 "$MERGE_SHA" | wc -w)"
+          if [ "$parents" -ne 3 ]; then
+            echo "::error::The promotion PR was not merged with a merge commit; see docs/releasing.md."
+            exit 1
+          fi
+
+      - name: Tag
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          git tag -a "v$VERSION" -m "rimlight $VERSION" "$MERGE_SHA"
+          git push origin "v$VERSION"
+
+      - id: bump
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: uv run python -m release_tools post-bump --version "$VERSION" --base "$BASE"
+
+      - name: Open version bump PR on dev
+        if: steps.bump.outputs.bump != ''
+        env:
+          BUMP: ${{ steps.bump.outputs.bump }}
+        run: |
+          git fetch origin dev
+          git switch -c "bump/$BUMP" origin/dev
+          uv version "$BUMP" --no-sync
+          git add pyproject.toml uv.lock
+          git commit -m "chore: bump version to $BUMP"
+          git push origin "bump/$BUMP"
+          gh pr create --base dev --head "bump/$BUMP" \
+            --title "chore: bump version to $BUMP" \
+            --body "Post-release version bump: dev always holds the next unreleased alpha."
+          gh pr merge "bump/$BUMP" --auto --squash
+
+      - name: Retire old release branches
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          branches="$(uv run python -m release_tools stale-branches --version "$VERSION" \
+            | sed -n 's/^branches=//p')"
+          for branch in $branches; do
+            git push origin --delete "$branch"
+          done
