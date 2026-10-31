@@ -31,6 +31,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "git-cliff>=2.14.2",
+    "packaging>=26.3",
     "pyright>=1.1.414",
     "pytest>=9.2.0",
     "pytest-qt>=4.5.0",
@@ -45,16 +47,21 @@ extend-exclude = ["typings"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "N", "PT"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["rimlight", "release_tools"]
+
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
-include = ["src", "tests", "packaging"]
+include = ["src", "tests", "packaging", "scripts"]
+extraPaths = ["src", "scripts"]
 stubPath = "typings"
 venvPath = "."
 venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["scripts"]
 addopts = "-m 'not hardware'"
 markers = [
     "hardware: needs the real LED strip plugged in; run manually with `pytest -m hardware`",
