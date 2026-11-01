@@ -13,6 +13,10 @@ app name, icon, or UI; mention it only as "compatible with" in README.
 
 Platforms: Windows 10/11 and Linux (Wayland + X11). License: MIT.
 
+Scope and priorities: `docs/roadmap.md` (MoSCoW for 1.0, milestones 0.1–1.0). It and
+`docs/roadmap.json` must agree (tested); the JSON feeds the roadmap issues
+(`scripts/dev_tools/roadmap.py`). Work on a roadmap item references its issue.
+
 ## Language
 
 - Code, identifiers, comments, docstrings, commit messages, docs, issues: **English**.

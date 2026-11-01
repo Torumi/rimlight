@@ -1,0 +1,516 @@
+{
+  "milestones": [
+    { "title": "0.1", "description": "First useful version (Windows): documented protocol, static color, brightness, recovery after sleep/resume and replugging, minimal tray." },
+    { "title": "0.2", "description": "Screen mirroring on Windows: per-LED frames, DXGI capture, monitor choice, zone layout, smoothing." },
+    { "title": "0.3", "description": "Linux: X11 and Wayland capture, suspend/resume and hotplug recovery, NixOS flake." },
+    { "title": "0.4", "description": "Full settings window and quality: preview, calibration, color processing, HDR, notifications." },
+    { "title": "1.0", "description": "Stabilization: installers, nixpkgs, user documentation, full release checklist." }
+  ],
+  "items": [
+    {
+      "id": "A2", "moscow": "Must", "milestone": "0.1",
+      "title": "Initialize the strip as documented in the protocol spec",
+      "labels": ["area: device", "protocol"],
+      "summary": "Send the init/handshake sequence the strip needs before it accepts color data, as derived from captures.",
+      "done_when": [
+        "The sequence is documented in docs/protocol.md with the captures it comes from",
+        "Encoders in device/protocol.py are tested against fixtures from real captures",
+        "The device manager sends it after every open and reopen"
+      ]
+    },
+    {
+      "id": "A3", "moscow": "Must", "milestone": "0.1",
+      "title": "Set the whole strip to one color",
+      "labels": ["area: device", "protocol"],
+      "summary": "Encode and send a single color for all LEDs.",
+      "done_when": [
+        "The color report is documented in docs/protocol.md",
+        "Encoder is fixture-tested; behaviour is checked on the real strip"
+      ]
+    },
+    {
+      "id": "A5", "moscow": "Must", "milestone": "0.1",
+      "title": "Brightness control",
+      "labels": ["area: device", "protocol"],
+      "summary": "Set brightness through the device's own control if the protocol has one, otherwise by scaling colors in software.",
+      "done_when": [
+        "Captures show whether the strip has a brightness command (05-brightness-change)",
+        "Brightness 0-100% works in static mode and is kept across reconnects"
+      ]
+    },
+    {
+      "id": "A6", "moscow": "Must", "milestone": "0.1",
+      "title": "Turn the strip on and off",
+      "labels": ["area: device", "protocol"],
+      "summary": "Switch the strip off and back on, restoring the previous state.",
+      "done_when": [
+        "The power report (or the documented equivalent) is in docs/protocol.md",
+        "Off/on from CLI and tray restores the last color and brightness"
+      ]
+    },
+    {
+      "id": "A7", "moscow": "Must", "milestone": "0.1",
+      "title": "Rate-limit writes to the strip",
+      "labels": ["area: device"],
+      "summary": "Never write faster than a configurable cap (default 60 fps), dropping or merging excess frames.",
+      "done_when": [
+        "Limiter is unit-tested with a fake clock against FakeTransport",
+        "The cap is a setting with a safe default"
+      ]
+    },
+    {
+      "id": "A12", "moscow": "Must", "milestone": "0.1",
+      "title": "LED count setting",
+      "labels": ["area: device"],
+      "summary": "The number of LEDs is a user setting (strips can be cut); it is never hard-coded.",
+      "done_when": [
+        "Setting with default 75 and validation, used by every encoder",
+        "Changing it applies without restarting the app"
+      ]
+    },
+    {
+      "id": "A8", "moscow": "Must", "milestone": "0.1",
+      "title": "Reconnect after unplugging and replugging (Windows)",
+      "labels": ["area: device", "os: windows"],
+      "summary": "Notice device arrival/removal and reopen the strip automatically.",
+      "done_when": [
+        "Write errors and device removal close the handle cleanly",
+        "Device arrival triggers reopen, re-init and restore of the last state",
+        "Verified on hardware by replugging while the app runs"
+      ]
+    },
+    {
+      "id": "A9", "moscow": "Must", "milestone": "0.1",
+      "title": "Recover the strip after sleep/resume (Windows)",
+      "labels": ["area: device", "area: power", "os: windows"],
+      "summary": "The reason this project exists: after waking from sleep the strip must come back without user action.",
+      "done_when": [
+        "Windows power events (RegisterSuspendResumeNotification / WM_POWERBROADCAST) reach the device manager",
+        "On resume: close, wait for re-enumeration, reopen with backoff, re-init, restore state; never on the UI thread",
+        "Captures and notes (08-sleep-resume) explain what the device does around sleep, including the Code 28 state",
+        "Verified on hardware over repeated sleep/resume cycles"
+      ]
+    },
+    {
+      "id": "A16a", "moscow": "Must", "milestone": "0.1",
+      "title": "Device driver abstraction and registry",
+      "labels": ["area: device"],
+      "summary": "Each supported device is a driver behind a common interface; a registry maps VID/PID to drivers, so other devices can be added later.",
+      "done_when": [
+        "Engine and UI talk to a generic device (LED count, capabilities), not to one strip's protocol",
+        "The strip's protocol is the first driver; tests use a fake driver"
+      ]
+    },
+    {
+      "id": "E1", "moscow": "Must", "milestone": "0.1",
+      "title": "Static color mode",
+      "labels": [],
+      "summary": "The engine's first mode: hold one color and brightness, re-applied after every reconnect.",
+      "done_when": [
+        "Mode is selectable from CLI and tray and persisted in settings"
+      ]
+    },
+    {
+      "id": "F1", "moscow": "Must", "milestone": "0.1",
+      "title": "Minimal tray icon",
+      "labels": ["area: ui"],
+      "summary": "Tray icon with on/off, color, brightness, device status and quit. The full settings window comes in 0.4.",
+      "done_when": [
+        "Tray works on Windows; UI talks to the engine only through the facade, core never imports Qt",
+        "Shows when the strip is disconnected or recovering"
+      ]
+    },
+    {
+      "id": "F4", "moscow": "Must", "milestone": "0.1",
+      "title": "Start with Windows",
+      "labels": ["area: ui", "os: windows"],
+      "summary": "Optional autostart at login so recovery works after every boot.",
+      "done_when": [
+        "Setting toggles autostart for the current user; works for the zip build"
+      ]
+    },
+    {
+      "id": "F5", "moscow": "Must", "milestone": "0.1",
+      "title": "Persist settings in TOML",
+      "labels": [],
+      "summary": "Settings model saved to a TOML file in the platform config directory (platformdirs).",
+      "done_when": [
+        "Typed settings model with defaults and validation; unknown keys are kept or reported, not crashing",
+        "Round-trip tests"
+      ]
+    },
+    {
+      "id": "F10", "moscow": "Must", "milestone": "0.1",
+      "title": "Allow only one running instance",
+      "labels": [],
+      "summary": "A second launch must not fight the first one for the device; it brings the running instance forward or exits.",
+      "done_when": [
+        "Second instance detects the first and exits cleanly (tested)"
+      ]
+    },
+    {
+      "id": "G1", "moscow": "Must", "milestone": "0.1",
+      "title": "CLI: set color, on/off, run headless",
+      "labels": [],
+      "summary": "rimlight-cli commands for scripting and debugging: set-color, brightness, on, off, and run (engine without UI).",
+      "done_when": [
+        "Commands documented in --help and README; tested against FakeTransport"
+      ]
+    },
+    {
+      "id": "I1", "moscow": "Must", "milestone": "0.1",
+      "title": "Log to a file and copy diagnostics",
+      "labels": [],
+      "summary": "Rotating log file and a way to collect diagnostics for bug reports, with serials masked.",
+      "done_when": [
+        "Logs include device events, power events and recovery steps with timestamps",
+        "Tray/CLI action copies diagnostics (version, OS, masked device list, recent log)"
+      ]
+    },
+    {
+      "id": "A10", "moscow": "Should", "milestone": "0.1",
+      "title": "Turn the strip off on sleep, shutdown and exit (Windows)",
+      "labels": ["area: device", "area: power", "os: windows"],
+      "summary": "The strip goes dark when the PC sleeps or shuts down and when rimlight exits (configurable).",
+      "done_when": [
+        "Behaviour is configurable and verified on hardware"
+      ]
+    },
+    {
+      "id": "A15", "moscow": "Should", "milestone": "0.1",
+      "title": "Detect the LED count automatically",
+      "labels": ["area: device", "protocol"],
+      "summary": "If the protocol exposes the LED count, use it as the default; the manual setting (A12) stays as an override.",
+      "done_when": [
+        "Captures show whether the device reports its length; if not, close this as not possible and rely on calibration (C2)"
+      ]
+    },
+    {
+      "id": "I2", "moscow": "Should", "milestone": "0.1",
+      "title": "Dump sent reports from the CLI",
+      "labels": ["area: device", "protocol"],
+      "summary": "A debug option that prints every report rimlight sends, to compare with captures.",
+      "done_when": [
+        "rimlight-cli option logs reports as hex with timestamps; never sends anything by itself"
+      ]
+    },
+
+    {
+      "id": "A4", "moscow": "Must", "milestone": "0.2",
+      "title": "Per-LED color frames",
+      "labels": ["area: device", "protocol"],
+      "summary": "Send a different color to every LED in one frame.",
+      "done_when": [
+        "Frame layout (LED order, channel order, multi-report frames) documented in docs/protocol.md",
+        "Encoder fixture-tested; verified on hardware with test patterns"
+      ]
+    },
+    {
+      "id": "B1", "moscow": "Must", "milestone": "0.2",
+      "title": "Screen capture on Windows (DXGI)",
+      "labels": ["area: capture", "os: windows"],
+      "summary": "CaptureBackend using DXGI Desktop Duplication.",
+      "done_when": [
+        "Frames delivered at the configured rate; handles display mode changes and sleep/resume"
+      ]
+    },
+    {
+      "id": "B4", "moscow": "Must", "milestone": "0.2",
+      "title": "Choose the monitor to mirror",
+      "labels": ["area: capture"],
+      "summary": "With several monitors, the user picks which one the strip follows.",
+      "done_when": [
+        "Monitor list with names; choice persisted; survives monitor reordering where possible"
+      ]
+    },
+    {
+      "id": "B7", "moscow": "Must", "milestone": "0.2",
+      "title": "Keep CPU and GPU load low while mirroring",
+      "labels": ["area: capture"],
+      "summary": "rimlight runs all the time, so mirroring must be cheap: downscaled capture, configurable rate.",
+      "done_when": [
+        "Load is measured and documented on a reference machine; capture rate is a setting"
+      ]
+    },
+    {
+      "id": "C1", "moscow": "Must", "milestone": "0.2",
+      "title": "Zone layout: start corner, direction, LEDs per edge",
+      "labels": [],
+      "summary": "Map LED indices to screen regions from the strip's physical layout.",
+      "done_when": [
+        "Layout settings cover start corner, direction and LED count per edge; mapping is unit-tested"
+      ]
+    },
+    {
+      "id": "D1", "moscow": "Must", "milestone": "0.2",
+      "title": "Smoothing between frames",
+      "labels": [],
+      "summary": "Smooth color changes to avoid flicker; speed is configurable.",
+      "done_when": [
+        "Smoothing is unit-tested and configurable"
+      ]
+    },
+    {
+      "id": "C3", "moscow": "Should", "milestone": "0.2",
+      "title": "Configurable zone depth",
+      "labels": [],
+      "summary": "How far into the screen each zone samples.",
+      "done_when": [
+        "Depth setting applied by the mapping, with tests"
+      ]
+    },
+
+    {
+      "id": "B2", "moscow": "Must", "milestone": "0.3",
+      "title": "Screen capture on Linux X11",
+      "labels": ["area: capture", "os: linux-x11"],
+      "summary": "CaptureBackend using XShm (mss).",
+      "done_when": [
+        "Works on an X11 session; selected automatically by the backend factory"
+      ]
+    },
+    {
+      "id": "B3", "moscow": "Must", "milestone": "0.3",
+      "title": "Screen capture on Linux Wayland",
+      "labels": ["area: capture", "os: linux-wayland"],
+      "summary": "CaptureBackend using xdg-desktop-portal ScreenCast and PipeWire.",
+      "done_when": [
+        "Works on GNOME and KDE at least; portal permission is remembered where the portal allows it"
+      ]
+    },
+    {
+      "id": "A8L", "moscow": "Must", "milestone": "0.3",
+      "title": "Reconnect after unplugging and replugging (Linux)",
+      "labels": ["area: device", "os: linux-x11", "os: linux-wayland"],
+      "summary": "udev/hidraw hotplug triggers reopen, re-init and restore.",
+      "done_when": [
+        "Verified on hardware with the udev rule installed"
+      ]
+    },
+    {
+      "id": "A9L", "moscow": "Must", "milestone": "0.3",
+      "title": "Recover the strip after suspend/resume (Linux)",
+      "labels": ["area: device", "area: power", "os: linux-x11", "os: linux-wayland"],
+      "summary": "logind PrepareForSleep drives the same recovery path as on Windows.",
+      "done_when": [
+        "Verified on hardware over repeated suspend/resume cycles"
+      ]
+    },
+    {
+      "id": "F4L", "moscow": "Must", "milestone": "0.3",
+      "title": "Start with the desktop session (Linux)",
+      "labels": ["area: ui", "os: linux-x11", "os: linux-wayland"],
+      "summary": "Optional autostart via XDG autostart (and the NixOS module).",
+      "done_when": [
+        "Setting toggles autostart; works on GNOME and KDE"
+      ]
+    },
+    {
+      "id": "H7a", "moscow": "Must", "milestone": "0.3",
+      "title": "NixOS flake with package and module",
+      "labels": ["area: packaging", "os: linux-x11", "os: linux-wayland"],
+      "summary": "flake.nix in the repository with a package and a NixOS module (udev rule, optional autostart). The PyInstaller tarball does not run on NixOS.",
+      "done_when": [
+        "nix build works and is checked in CI; module documented in README"
+      ]
+    },
+    {
+      "id": "A10L", "moscow": "Should", "milestone": "0.3",
+      "title": "Turn the strip off on suspend, shutdown and exit (Linux)",
+      "labels": ["area: device", "area: power", "os: linux-x11", "os: linux-wayland"],
+      "summary": "Linux counterpart of A10, using logind inhibitor locks.",
+      "done_when": [
+        "Behaviour is configurable and verified on hardware"
+      ]
+    },
+
+    {
+      "id": "F2", "moscow": "Must", "milestone": "0.4",
+      "title": "Main settings window",
+      "labels": ["area: ui"],
+      "summary": "Full window for every setting, so nobody needs to edit TOML.",
+      "done_when": [
+        "Every setting is reachable in the window; pytest-qt tests for the main flows"
+      ]
+    },
+    {
+      "id": "F3", "moscow": "Should", "milestone": "0.4",
+      "title": "Live LED preview",
+      "labels": ["area: ui"],
+      "summary": "Show what the strip displays, around a monitor outline.",
+      "done_when": [
+        "Preview follows the engine output without slowing it down"
+      ]
+    },
+    {
+      "id": "C2", "moscow": "Should", "milestone": "0.4",
+      "title": "Calibration wizard",
+      "labels": ["area: ui"],
+      "summary": "Light LEDs one by one so the user finds the start corner, direction and edge counts without counting.",
+      "done_when": [
+        "Wizard produces a complete zone layout (C1)"
+      ]
+    },
+    {
+      "id": "D2", "moscow": "Should", "milestone": "0.4",
+      "title": "Gamma, white balance and color temperature",
+      "labels": [],
+      "summary": "Color correction so the strip matches the screen.",
+      "done_when": [
+        "Settings with sane defaults; processing is unit-tested"
+      ]
+    },
+    {
+      "id": "D4", "moscow": "Should", "milestone": "0.4",
+      "title": "Threshold for dark scenes",
+      "labels": [],
+      "summary": "Keep near-black scenes from producing flickering murky colors.",
+      "done_when": [
+        "Threshold setting, unit-tested"
+      ]
+    },
+    {
+      "id": "B5", "moscow": "Should", "milestone": "0.4",
+      "title": "Correct colors on HDR monitors",
+      "labels": ["area: capture", "os: windows"],
+      "summary": "Tone-map HDR captures so colors are not washed out.",
+      "done_when": [
+        "Verified on an HDR display"
+      ]
+    },
+    {
+      "id": "F9", "moscow": "Should", "milestone": "0.4",
+      "title": "Notifications on disconnect and recovery",
+      "labels": ["area: ui"],
+      "summary": "Optional desktop notifications when the strip is lost or recovered.",
+      "done_when": [
+        "Notifications can be turned off; no notification storms during repeated reconnects"
+      ]
+    },
+
+    {
+      "id": "H2", "moscow": "Should", "milestone": "1.0",
+      "title": "Windows installer",
+      "labels": ["area: packaging", "os: windows"],
+      "summary": "Installer (MSI and/or winget) with Start menu entry and uninstall.",
+      "done_when": [
+        "Built by the release workflow and attached to releases"
+      ]
+    },
+    {
+      "id": "H7b", "moscow": "Should", "milestone": "1.0",
+      "title": "Package rimlight in nixpkgs",
+      "labels": ["area: packaging", "os: linux-x11", "os: linux-wayland"],
+      "summary": "Submit the package (and module) to nixpkgs once a stable version exists.",
+      "done_when": [
+        "Package merged into nixpkgs"
+      ]
+    },
+
+    {
+      "id": "A11", "moscow": "Could", "milestone": null,
+      "title": "React to screen lock",
+      "labels": ["area: device", "area: power"],
+      "summary": "Optionally dim or turn off the strip while the session is locked.",
+      "done_when": ["Configurable behaviour on Windows and Linux"]
+    },
+    {
+      "id": "A13", "moscow": "Could", "milestone": null,
+      "title": "Drive several strips at once",
+      "labels": ["area: device"],
+      "summary": "Support more than one strip, for example on several monitors.",
+      "done_when": ["Each strip has its own layout and monitor"]
+    },
+    {
+      "id": "A14", "moscow": "Could", "milestone": null,
+      "title": "Show the firmware version",
+      "labels": ["area: device", "protocol"],
+      "summary": "Display the strip's firmware version, if the protocol reports it.",
+      "done_when": ["Shown in CLI and diagnostics"]
+    },
+    {
+      "id": "A16b", "moscow": "Could", "milestone": null,
+      "title": "Support other Nanoleaf devices",
+      "labels": ["area: device", "protocol"],
+      "summary": "Add drivers for other devices once owners or captures are available (clean-room: each device needs its own captures).",
+      "done_when": ["One issue per device, each with its own protocol documentation"]
+    },
+    {
+      "id": "B6", "moscow": "Could", "milestone": null,
+      "title": "Ignore letterbox bars",
+      "labels": ["area: capture"],
+      "summary": "Detect black bars in films and sample the picture instead.",
+      "done_when": ["Detection is stable and unit-tested on sample frames"]
+    },
+    {
+      "id": "D3", "moscow": "Could", "milestone": null,
+      "title": "Saturation boost",
+      "labels": [],
+      "summary": "Optional saturation increase for more vivid ambient light.",
+      "done_when": ["Setting, unit-tested"]
+    },
+    {
+      "id": "E2", "moscow": "Could", "milestone": null,
+      "title": "Built-in effects",
+      "labels": [],
+      "summary": "Original effects such as rainbow or breathing. Never copies the vendor's effect definitions.",
+      "done_when": ["Effects selectable from tray and window"]
+    },
+    {
+      "id": "E4", "moscow": "Could", "milestone": null,
+      "title": "Schedules: night mode and timed off",
+      "labels": [],
+      "summary": "Change brightness or turn the strip off at set times.",
+      "done_when": ["Schedule settings, tested with a fake clock"]
+    },
+    {
+      "id": "F6", "moscow": "Could", "milestone": null,
+      "title": "Profiles and presets",
+      "labels": ["area: ui"],
+      "summary": "Save and switch named sets of settings.",
+      "done_when": ["Profiles selectable from tray and window"]
+    },
+    {
+      "id": "F7", "moscow": "Could", "milestone": null,
+      "title": "Global hotkeys",
+      "labels": ["area: ui"],
+      "summary": "Keyboard shortcuts for on/off, mode and brightness.",
+      "done_when": ["Configurable hotkeys on Windows and Linux X11 (Wayland where possible)"]
+    },
+    {
+      "id": "F8", "moscow": "Could", "milestone": null,
+      "title": "Translate the user interface",
+      "labels": ["area: ui"],
+      "summary": "Qt translations, starting with Russian.",
+      "done_when": ["Translation workflow documented; UI strings extracted"]
+    },
+    {
+      "id": "G2", "moscow": "Could", "milestone": null,
+      "title": "Local API for automation",
+      "labels": [],
+      "summary": "Local HTTP/WebSocket (and D-Bus on Linux) API for Home Assistant and scripts.",
+      "done_when": ["Bound to localhost by default; documented"]
+    },
+    {
+      "id": "G3", "moscow": "Could", "milestone": null,
+      "title": "Per-application profiles",
+      "labels": [],
+      "summary": "Switch profile or mode when a given application or game runs.",
+      "done_when": ["Rules configurable; works on Windows"]
+    },
+    {
+      "id": "H4", "moscow": "Could", "milestone": null,
+      "title": "Flatpak, AUR and deb packages",
+      "labels": ["area: packaging", "os: linux-x11", "os: linux-wayland"],
+      "summary": "Native packages for common Linux distributions.",
+      "done_when": ["One issue per package format when someone picks it up"]
+    },
+    {
+      "id": "H5", "moscow": "Could", "milestone": null,
+      "title": "Check for updates",
+      "labels": ["area: ui"],
+      "summary": "Optional check against GitHub Releases; never downloads or installs by itself.",
+      "done_when": ["Off by default or clearly opt-in; respects pre-release channel choice"]
+    }
+  ]
+}

@@ -1,1 +1,1 @@
-"""Developer tooling run by the git hooks (see .pre-commit-config.yaml)."""
+"""Developer tooling: git hook helpers (see .pre-commit-config.yaml) and repository scripts."""
