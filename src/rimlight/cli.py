@@ -30,10 +30,27 @@ def _format_table(devices: Sequence[HidDeviceInfo]) -> str:
     return "\n".join([header, *lines])
 
 
+def mask_identifier(value: str, visible: int = 2) -> str:
+    """Hide all but the last `visible` characters, e.g. "SN0000000042" -> "**********42"."""
+    if len(value) <= visible:
+        return "*" * len(value)
+    return "*" * (len(value) - visible) + value[-visible:]
+
+
+def _json_entry(device: HidDeviceInfo, show_serial: bool) -> dict[str, object]:
+    entry: dict[str, object] = {**asdict(device), "path": device.path.decode(errors="replace")}
+    if not show_serial:
+        # Output gets pasted into public issues. The strip reports a unit-specific value in
+        # its manufacturer string as well as in the serial number, so both are masked.
+        entry["serial_number"] = mask_identifier(device.serial_number)
+        entry["manufacturer_string"] = mask_identifier(device.manufacturer_string)
+    return entry
+
+
 def _cmd_list(args: argparse.Namespace) -> int:
     devices = find_devices(usage_page=None if args.all else USAGE_PAGE)
     if args.json:
-        payload = [asdict(d) | {"path": d.path.decode(errors="replace")} for d in devices]
+        payload = [_json_entry(d, args.show_serial) for d in devices]
         print(json.dumps(payload, indent=2))
     elif devices:
         print(_format_table(devices))
@@ -57,6 +74,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--all", action="store_true", help="show every interface of the device, any usage page"
     )
     p_list.add_argument("--json", action="store_true", help="machine-readable output")
+    p_list.add_argument(
+        "--show-serial",
+        action="store_true",
+        help="print serial and manufacturer strings unmasked (not for public issues)",
+    )
     p_list.set_defaults(func=_cmd_list)
     return parser
 
