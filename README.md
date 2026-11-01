@@ -71,14 +71,16 @@ uv run pytest -m hardware         # with the strip plugged in
 
 ## Roadmap
 
-Tentative, in rough order; progress is tracked in
-[milestones](https://github.com/Torumi/rimlight/milestones).
+| Milestone | Goal |
+|-----------|------|
+| 0.1 | Windows: documented protocol, static color, recovery after sleep/resume and replugging, tray |
+| 0.2 | Screen mirroring on Windows |
+| 0.3 | Linux (X11, Wayland) and NixOS |
+| 0.4 | Full settings window and color quality |
+| 1.0 | Stabilization, installers |
 
-1. Document the protocol from USB captures ([docs/protocol.md](docs/protocol.md)).
-2. Static color and brightness from the CLI.
-3. Reliable recovery after sleep/resume and replugging.
-4. Screen mirroring on Windows, then Linux X11 and Wayland.
-5. GUI: zone editor, live preview, tray.
+Every feature with its priority is in [docs/roadmap.md](docs/roadmap.md); progress is tracked in
+[milestones](https://github.com/Torumi/rimlight/milestones).
 
 ## Contributing
 
