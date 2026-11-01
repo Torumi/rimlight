@@ -64,7 +64,10 @@ Scope and priorities: `docs/roadmap.md` (MoSCoW for 1.0, milestones 0.1–1.0). 
 ```
 src/rimlight/
   device/       # protocol.py (pure encode/decode, no I/O), transport.py (Transport ABC,
-                # HidTransport, FakeTransport), manager.py (open/reopen, hotplug, resume recovery)
+                # HidTransport, FakeTransport), driver.py (DeviceDriver ABC: generic requests ->
+                # one device family's reports), drivers/ (one module per device; BUILTIN_DRIVERS),
+                # registry.py (HID interface -> driver), fake.py (FakeDriver for tests),
+                # manager.py (open/reopen, hotplug, resume recovery)
   capture/      # base.py (CaptureBackend protocol), windows_dxgi.py, linux_x11.py, linux_portal.py
   mapping/      # zone layout: LED index -> screen region, corner/edge calibration
   processing/   # averaging, smoothing, gamma, color temperature, brightness
@@ -77,6 +80,8 @@ src/rimlight/
 
 Rules:
 - `device/protocol.py` is pure and fully unit-tested against fixtures from real captures.
+- Engine, UI and CLI talk to `DeviceDriver`s only, never to one device's protocol. Drivers
+  declare `DeviceCapabilities`; the engine emulates what a device lacks (e.g. brightness).
 - Core packages never import PySide6. UI talks to the engine via signals/a thin facade.
 - Platform-specific modules are imported lazily behind a factory; the other OS's code must
   import-safely skip in CI.

@@ -7,23 +7,26 @@ from collections.abc import Sequence
 from dataclasses import asdict
 
 from rimlight import __version__
-from rimlight.device.discovery import HidDeviceInfo, find_devices
-from rimlight.device.ids import PRODUCT_ID, USAGE_PAGE, VENDOR_ID
+from rimlight.device.discovery import HidDeviceInfo
+from rimlight.device.registry import SupportedDevice, default_registry
 
 
-def _format_table(devices: Sequence[HidDeviceInfo]) -> str:
-    headers = ("interface", "usage page", "usage", "product", "release", "path")
-    rows = [
-        (
-            str(d.interface_number),
-            f"0x{d.usage_page:04X}" if d.usage_page else "?",
-            f"0x{d.usage:02X}",
-            d.product_string or "?",
-            d.release_str,
-            d.path.decode(errors="replace"),
-        )
-        for d in devices
-    ]
+def _table_row(device: SupportedDevice) -> tuple[str, ...]:
+    info = device.info
+    return (
+        device.driver.id,
+        str(info.interface_number),
+        f"0x{info.usage_page:04X}" if info.usage_page else "?",
+        f"0x{info.usage:02X}",
+        info.product_string or "?",
+        info.release_str,
+        info.path.decode(errors="replace"),
+    )
+
+
+def _format_table(devices: Sequence[SupportedDevice]) -> str:
+    headers = ("driver", "interface", "usage page", "usage", "product", "release", "path")
+    rows = [_table_row(d) for d in devices]
     widths = [max(len(row[i]) for row in (headers, *rows)) for i in range(len(headers))]
     lines = ["  ".join(cell.ljust(w) for cell, w in zip(row, widths, strict=True)) for row in rows]
     header = "  ".join(h.ljust(w) for h, w in zip(headers, widths, strict=True))
@@ -37,8 +40,13 @@ def mask_identifier(value: str, visible: int = 2) -> str:
     return "*" * (len(value) - visible) + value[-visible:]
 
 
-def _json_entry(device: HidDeviceInfo, show_serial: bool) -> dict[str, object]:
-    entry: dict[str, object] = {**asdict(device), "path": device.path.decode(errors="replace")}
+def _json_entry(supported: SupportedDevice, show_serial: bool) -> dict[str, object]:
+    device: HidDeviceInfo = supported.info
+    entry: dict[str, object] = {
+        "driver": supported.driver.id,
+        **asdict(device),
+        "path": device.path.decode(errors="replace"),
+    }
     if not show_serial:
         # Output gets pasted into public issues. The strip reports a unit-specific value in
         # its manufacturer string as well as in the serial number, so both are masked.
@@ -48,18 +56,16 @@ def _json_entry(device: HidDeviceInfo, show_serial: bool) -> dict[str, object]:
 
 
 def _cmd_list(args: argparse.Namespace) -> int:
-    devices = find_devices(usage_page=None if args.all else USAGE_PAGE)
+    registry = default_registry()
+    devices = registry.find_supported(any_interface=args.all)
     if args.json:
         payload = [_json_entry(d, args.show_serial) for d in devices]
         print(json.dumps(payload, indent=2))
     elif devices:
         print(_format_table(devices))
     if not devices:
-        scope = "" if args.all else f", usage page 0x{USAGE_PAGE:04X}"
-        print(
-            f"No HID interfaces found for {VENDOR_ID:04X}:{PRODUCT_ID:04X}{scope}.",
-            file=sys.stderr,
-        )
+        ids = ", ".join(d.id for d in registry.drivers)
+        print(f"No supported devices found (drivers: {ids}).", file=sys.stderr)
         return 1
     return 0
 

@@ -26,6 +26,7 @@ def test_list_json(
     payload = json.loads(capsys.readouterr().out)
     assert payload[0]["path"] == "dev-path"
     assert payload[0]["usage_page"] == 0xFF00
+    assert payload[0]["driver"] == "37fa:8202"
 
 
 def test_list_json_masks_unit_identifiers_by_default(
@@ -62,4 +63,4 @@ def test_list_nothing_found(
     fake_enumeration: list[dict[str, Any]], capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["list"]) == 1
-    assert "No HID interfaces found" in capsys.readouterr().err
+    assert "No supported devices found" in capsys.readouterr().err
