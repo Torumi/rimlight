@@ -37,11 +37,11 @@ jobs:
     env:
       PKG: ${{ inputs.name }}-${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ inputs.ref }}
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           enable-cache: true
 
@@ -68,6 +68,23 @@ jobs:
             cp packaging/linux/99-rimlight.rules "out/$PKG/"
           fi
 
+      # The frozen CLI must start and reach hidapi: catches missing hidden imports and libraries.
+      # No strip is attached, so `list` exits 1 after printing an empty JSON list.
+      - name: Smoke test
+        run: |
+          cli="out/$PKG/rimlight-cli/rimlight-cli"
+          "$cli" --version
+          set +e
+          output="$("$cli" list --all --json)"
+          status=$?
+          set -e
+          output="${output%$'\r'}" # Windows line ending
+          echo "list exit=$status output=$output"
+          if [ "$status" -ne 1 ] || [ "$output" != "[]" ]; then
+            echo "::error::rimlight-cli list did not run cleanly from the bundle"
+            exit 1
+          fi
+
       - name: Archive (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -77,7 +94,7 @@ jobs:
         if: runner.os == 'Linux'
         run: tar -C out -czf "out/$PKG.tar.gz" "$PKG"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ env.PKG }}
           path: |
