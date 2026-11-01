@@ -1,0 +1,62 @@
+name: Hardware / setup report
+description: Tell us whether rimlight works on your setup. These reports build the compatibility list.
+labels: [needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports from setups the maintainers do not have are one of the most useful contributions. Thank you!
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Works
+        - Partly works
+        - Does not work
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rimlight version
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system and session
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux, Wayland
+        - Linux, X11
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS details
+      description: Windows build, or Linux distribution and desktop/compositor.
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Strip and monitor
+      description: LED count, monitor size/resolution, how the strip is connected (direct port or hub).
+  - type: checkboxes
+    id: tested
+    attributes:
+      label: What you tested
+      options:
+        - label: Device found by `rimlight-cli list`
+        - label: Static color
+        - label: Screen mirroring
+        - label: Recovery after sleep/resume
+        - label: Recovery after unplugging and replugging
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: What did not work, workarounds, `rimlight-cli list --all --json` output.

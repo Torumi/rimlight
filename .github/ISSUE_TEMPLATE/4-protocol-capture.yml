@@ -1,0 +1,64 @@
+name: Protocol capture
+description: Share a USB capture of the strip to help document the protocol.
+labels: [protocol, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Follow [docs/capture-guide.md](https://github.com/Torumi/rimlight/blob/dev/docs/capture-guide.md).
+        **Filter the capture to the strip's traffic only** before attaching it: a raw capture can include other USB
+        devices, such as your keyboard. Zip the `.pcapng` file to attach it here.
+  - type: dropdown
+    id: scenario
+    attributes:
+      label: Scenario
+      description: Names from the capture guide.
+      options:
+        - 00-plug-in
+        - 01-app-start
+        - 02-solid-red-100
+        - 03-solid-green-100
+        - 04-solid-blue-100
+        - 05-brightness-change
+        - 06-power-off-on
+        - 07-mirror-5s
+        - 08-sleep-resume
+        - 09-replug-after-resume
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: What you did, and when
+      description: The contents of your `NN-scenario.txt` notes (actions with rough timestamps).
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware and vendor app version
+      description: As shown in the vendor app.
+  - type: input
+    id: setup
+    attributes:
+      label: OS, capture tool and LED count
+      placeholder: Windows 11, Wireshark 4.4 + USBPcap, 75 LEDs
+    validations:
+      required: true
+  - type: textarea
+    id: attachment
+    attributes:
+      label: Capture file
+      description: Drag the zipped capture here.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: The capture is filtered to the strip's traffic and contains nothing private.
+          required: true
+        - label: I captured this from my own device, and I have not decompiled or read the vendor app's binaries or resources.
+          required: true

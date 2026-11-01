@@ -1,0 +1,37 @@
+name: DCO
+
+# Required status check "dco": every non-merge commit in a PR is signed off by its author
+# (`git commit -s`), certifying the Developer Certificate of Origin. See CONTRIBUTING.md.
+# PRs from this repository's automation branches are skipped (the App does not sign off);
+# a skipped job counts as passing. Branches with those names in forks are still checked.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dco:
+    if: >
+      !(github.event.pull_request.head.repo.full_name == github.repository
+        && (startsWith(github.event.pull_request.head.ref, 'release-prep/')
+          || startsWith(github.event.pull_request.head.ref, 'merge-back/')
+          || startsWith(github.event.pull_request.head.ref, 'backport/')
+          || startsWith(github.event.pull_request.head.ref, 'bump/')))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/dev_tools
+
+      - name: Fetch PR commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits" > commits.json
+
+      - name: Check sign-offs
+        run: python3 scripts/dev_tools/dco.py pr commits.json

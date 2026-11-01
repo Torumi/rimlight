@@ -1,0 +1,63 @@
+name: Bug report
+description: Something does not work as it should.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! English is preferred, but any language (or a machine translation) is fine.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start rimlight
+        2. Put the PC to sleep and wake it
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rimlight version
+      description: From the release name, or `uv run rimlight-cli --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system and session
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux, Wayland
+        - Linux, X11
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS details
+      description: Windows build, or Linux distribution and desktop/compositor (GNOME, KDE, Hyprland, ...).
+  - type: input
+    id: leds
+    attributes:
+      label: LED count
+      description: 75 unless the strip was cut.
+  - type: textarea
+    id: device-list
+    attributes:
+      label: Output of `rimlight-cli list --all --json`
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or other details
+      render: text

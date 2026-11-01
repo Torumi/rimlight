@@ -11,7 +11,8 @@ This file is the single source of truth for how rimlight talks to the strip. Cod
   [capture-guide.md](capture-guide.md)) and from behavior observed on the device.
   No decompilation or reading of vendor software.
 - Every field cites the capture file(s) it was derived from (`NN-scenario.pcapng`, frame
-  numbers where useful).
+  numbers where useful). Captures contributed by others are cited by their "Protocol capture"
+  issue (`#123: 02-solid-red-100`).
 - Confidence levels: **confirmed** (seen in ≥2 captures and reproduced), **likely** (consistent
   across captures, not yet reproduced), **guess** (single observation; must not be sent).
 - Only reports with confirmed fields may be sent by rimlight.

@@ -69,7 +69,24 @@ uv run pytest                     # hardware tests are skipped
 uv run pytest -m hardware         # with the strip plugged in
 ```
 
-Want to help with the protocol? See [docs/capture-guide.md](docs/capture-guide.md).
+## Roadmap
+
+Tentative, in rough order; progress is tracked in
+[milestones](https://github.com/Torumi/rimlight/milestones).
+
+1. Document the protocol from USB captures ([docs/protocol.md](docs/protocol.md)).
+2. Static color and brightness from the CLI.
+3. Reliable recovery after sleep/resume and replugging.
+4. Screen mirroring on Windows, then Linux X11 and Wayland.
+5. GUI: zone editor, live preview, tray.
+
+## Contributing
+
+Bug reports, setup reports, USB captures, and code are all welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) first, especially the clean-room rules, and open an issue
+before larger changes. Questions and ideas go to
+[Discussions](https://github.com/Torumi/rimlight/discussions); security issues to
+[SECURITY.md](SECURITY.md). This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ### Branches and releases
 

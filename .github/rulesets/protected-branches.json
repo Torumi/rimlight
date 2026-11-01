@@ -32,7 +32,8 @@
           { "context": "check (ubuntu-latest)", "integration_id": 15368 },
           { "context": "checklist", "integration_id": 15368 },
           { "context": "hooks", "integration_id": 15368 },
-          { "context": "pr-title", "integration_id": 15368 }
+          { "context": "pr-title", "integration_id": 15368 },
+          { "context": "dco", "integration_id": 15368 }
         ]
       }
     }

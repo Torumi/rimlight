@@ -7,6 +7,10 @@
 # pyright and pytest run only when the commit touches Python files. Tests marked `slow` or
 # `hardware` are skipped here; CI runs everything except `hardware`.
 # CI's `hooks` job runs this file on all files, skipping the hooks CI already covers.
+# The commit-msg hook checks the DCO sign-off (`git commit -s`); CI's `dco` check does the same.
+
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -74,3 +78,9 @@ repos:
         entry: uv run --frozen pytest -q -m "not hardware and not slow" --durations=3
         types_or: [python, pyi]
         pass_filenames: false
+
+      - id: dco
+        name: DCO sign-off
+        language: system
+        entry: uv run --frozen python scripts/dev_tools/dco.py commit-msg
+        stages: [commit-msg]
