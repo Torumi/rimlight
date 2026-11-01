@@ -48,3 +48,31 @@ jobs:
 
       - name: Pytest
         run: uv run pytest
+
+  # Required status check "hooks": the git hooks from .pre-commit-config.yaml on all files, so
+  # they hold even for commits made without them. Hooks that `check` already covers, and
+  # no-commit-to-branch (CI runs on dev/main), are skipped.
+  hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --locked
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/prek
+            .cache/tools
+          key: hooks-${{ hashFiles('.pre-commit-config.yaml', 'scripts/dev_tools/**') }}
+
+      - name: Run hooks
+        run: >
+          uv run --frozen prek run --all-files --show-diff-on-failure
+          --skip ruff-check --skip ruff-format --skip pyright --skip pytest
+          --skip no-commit-to-branch

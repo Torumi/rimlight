@@ -62,6 +62,7 @@ uv run rimlight                   # GUI (placeholder for now)
 
 ```
 uv sync
+uv run prek install               # git hooks (lint, format, types, fast tests, hygiene)
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
 uv run pytest                     # hardware tests are skipped

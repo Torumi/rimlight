@@ -6,6 +6,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# Tool binaries downloaded by scripts/dev_tools
+.cache/
+
 # Build output (uv build, PyInstaller)
 build/
 dist/

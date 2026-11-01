@@ -44,6 +44,7 @@ def test_platform_stubs_import_on_any_os(module: str) -> None:
     importlib.import_module(module)
 
 
+@pytest.mark.slow
 def test_core_does_not_import_qt() -> None:
     code = (
         "import importlib, sys\n"
