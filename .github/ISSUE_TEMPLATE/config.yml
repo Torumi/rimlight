@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/Torumi/rimlight/discussions
+    about: Ask questions, discuss ideas and share your setup in Discussions.
+  - name: Security vulnerability
+    url: https://github.com/Torumi/rimlight/security/advisories/new
+    about: Report it privately; never in a public issue. See SECURITY.md.

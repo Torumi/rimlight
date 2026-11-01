@@ -20,8 +20,9 @@ Platforms: Windows 10/11 and Linux (Wayland + X11). License: MIT.
 
 ## Clean-room rules (non-negotiable)
 
-- The only source of protocol knowledge is USB traffic captured by the user
-  (Wireshark + USBPcap on Windows, usbmon on Linux) and behavior observed on the device.
+- The only source of protocol knowledge is USB traffic captured by the user or attached to
+  "Protocol capture" issues by contributors (Wireshark + USBPcap on Windows, usbmon on Linux),
+  and behavior observed on the device.
 - Never decompile, disassemble, or read the vendor app's binaries, installers,
   JS bundles, or resources. Never copy vendor code, assets, effect definitions, or strings.
 - `docs/protocol.md` is the spec. Implementation follows the spec only.
@@ -109,6 +110,9 @@ Full process: `docs/releasing.md`. Summary:
 - GitHub, public repo. Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`, `test:`);
   PR titles too, since feature PRs are squash-merged and `CHANGELOG.md` is generated from them.
 - Small focused commits; don't commit unless the user asks.
+- DCO: every commit is signed off (`git commit -s`). Commits made on the user's command carry
+  the user's sign-off; the command to commit is their consent to it. Contributor rules live in
+  `CONTRIBUTING.md`.
 - Branches: `dev` (default, alpha line), `main` (beta/rc, then the stable release),
   `release/X.Y` (only for hotfixes while a beta is on `main`). Work happens on `feat/*` / `fix/*`
   branches off `dev`, merged by PR; never push directly to `dev`, `main` or `release/*`.
@@ -119,9 +123,10 @@ Full process: `docs/releasing.md`. Summary:
   `prepare-release` workflow; the rules live in `scripts/release_tools` (unit-tested).
 - Git hooks (prek, `.pre-commit-config.yaml`): ruff fix/format, pyright, fast tests, file
   hygiene, private keys, large files and captures, `uv lock --check`, actionlint + shellcheck,
-  no commits to `dev`/`main`/`release/*`. Don't bypass them with `--no-verify`.
+  no commits to `dev`/`main`/`release/*`; commit-msg hook checks the DCO sign-off. Don't bypass
+  them with `--no-verify`.
 - GitHub Actions: `ci.yml` (ruff, format, pyright, pytest on Windows + Ubuntu, plus `hooks` on
-  all files) and `pr-title.yml` (Conventional Commit PR titles) on PRs and pushes;
+  all files), `pr-title.yml` (Conventional Commit PR titles) and `dco.yml` (sign-offs) on PRs;
   `dev-build.yml` (artifacts per dev push); release flow `prepare-release` → `tag-release` →
   `release`; `merge-back` (main → dev); `backport` (release/X.Y → main). Writing workflows
   act as a GitHub App; protection lives in `.github/rulesets/` (applied by `scripts/github/`).

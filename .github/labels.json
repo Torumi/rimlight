@@ -1,0 +1,26 @@
+[
+  { "name": "bug", "color": "d73a4a", "description": "Something does not work as intended" },
+  { "name": "enhancement", "color": "a2eeef", "description": "New feature or improvement" },
+  { "name": "documentation", "color": "0075ca", "description": "Docs need writing or fixing" },
+  { "name": "question", "color": "d876e3", "description": "A question rather than a task; usually moved to Discussions" },
+
+  { "name": "area: device", "color": "1d76db", "description": "Strip protocol, transport, reconnect and resume recovery" },
+  { "name": "area: capture", "color": "1d76db", "description": "Screen capture backends (DXGI, X11, Wayland portal)" },
+  { "name": "area: power", "color": "1d76db", "description": "Sleep, resume, lock and unlock events" },
+  { "name": "area: ui", "color": "1d76db", "description": "Window, tray, zone editor, preview" },
+  { "name": "area: packaging", "color": "1d76db", "description": "Builds, udev rule, distribution packages" },
+  { "name": "area: ci", "color": "1d76db", "description": "Workflows, hooks and the release process" },
+
+  { "name": "os: windows", "color": "5319e7", "description": "Happens on Windows" },
+  { "name": "os: linux-x11", "color": "5319e7", "description": "Happens on Linux with X11" },
+  { "name": "os: linux-wayland", "color": "5319e7", "description": "Happens on Linux with Wayland" },
+
+  { "name": "needs-triage", "color": "fbca04", "description": "New; not reviewed by a maintainer yet" },
+  { "name": "needs-repro", "color": "fbca04", "description": "Cannot reproduce; more details needed" },
+  { "name": "needs-hardware-test", "color": "fbca04", "description": "Needs testing on real hardware or a setup the maintainers lack" },
+  { "name": "protocol", "color": "0e8a16", "description": "Device protocol research: captures and docs/protocol.md" },
+  { "name": "good first issue", "color": "7057ff", "description": "Small, well-defined task for newcomers" },
+  { "name": "help wanted", "color": "008672", "description": "Not planned by maintainers soon; PRs welcome" },
+  { "name": "wontfix", "color": "ffffff", "description": "Will not be worked on; see the closing comment" },
+  { "name": "duplicate", "color": "cfd3d7", "description": "Already reported elsewhere" }
+]

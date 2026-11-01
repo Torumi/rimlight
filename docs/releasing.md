@@ -1,5 +1,7 @@
 # Branching and releases
 
+Maintainer documentation. Contributors only need [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 ## Branches
 
 | Branch | Holds | Gets changes from |
@@ -12,22 +14,25 @@
 `dev`, `main` and `release/*` accept changes only through PRs with green CI. Nobody force-pushes
 or deletes them.
 
-### Working on a change
+### Changes
 
-0. Once per clone: `uv run prek install`. The hooks fix lint and formatting, type-check, run
-   the fast tests and block secrets, large files, captures and commits straight onto `dev`,
-   `main` or `release/*`. CI's `hooks` check runs the same hooks, so skipping them locally only
-   moves the failure to the PR.
-1. Branch off `dev`: `feat/<topic>` or `fix/<topic>`.
-2. Open a PR into `dev`. It is squash-merged, so the PR title becomes the commit: write it as a
-   Conventional Commit (`feat: ...`, `fix(device): ...`); the required `pr-title` check enforces
-   this. The changelog is generated from these titles.
-3. Rebasing your own feature branch and `git push --force-with-lease` is fine.
+Feature and fix PRs follow [CONTRIBUTING.md](../CONTRIBUTING.md): branch off `dev`, sign off,
+Conventional Commit PR title, squash merge. Maintainers work the same way, from branches in this
+repository instead of a fork.
 
 **Never rebase or force-push automation branches** (`merge-back/*` especially): their merge
 commits are what keeps `main` and `dev` history connected. Resolve conflicts there by merging.
 
 A bug found in the beta is fixed with a PR into `main`; merge-back carries it to `dev`.
+External PRs that target `dev` but fix a beta bug are re-targeted to `main` by the maintainer.
+
+### Triage
+
+New issues get `needs-triage` from their template. Triage means: reproduce or ask for details
+(`needs-repro`), add type, `area:` and `os:` labels, link duplicates, set a milestone if it is
+planned, and remove `needs-triage`. Say "no" early (`wontfix`, with a reason) rather than leaving
+issues open. Protocol captures attached to issues are reviewed for privacy before any finding
+from them goes into `docs/protocol.md`.
 
 ## Versions
 
@@ -95,6 +100,7 @@ automatically when `0.5.0` is released.
 |----------|---------|------|
 | `ci.yml` | PRs; pushes to `dev`, `main`, `release/**` | ruff, format check, pyright, pytest on Windows and Ubuntu; `hooks`: the git hooks on all files |
 | `pr-title.yml` | PR opened/edited | required `pr-title` check: Conventional Commit title |
+| `dco.yml` | PR opened/updated | required `dco` check: every commit signed off (automation branches skipped) |
 | `release-checklist.yml` | release-prep PR opened/edited | required `checklist` check |
 | `dev-build.yml` | push to `dev` | PyInstaller builds as artifacts |
 | `prepare-release.yml` | manual | validates, bumps, changelog, opens the release PR |
