@@ -36,9 +36,7 @@ CACHE = ROOT / ".cache" / "tools" / f"actionlint-{VERSION}"
 def asset_suffix(system: str, machine: str) -> str:
     """Release asset suffix for `platform.system()` / `platform.machine()` values."""
     os_name = {"Linux": "linux", "Darwin": "darwin", "Windows": "windows"}.get(system)
-    arch = {"x86_64": "amd64", "AMD64": "amd64", "arm64": "arm64", "aarch64": "arm64"}.get(
-        machine
-    )
+    arch = {"x86_64": "amd64", "AMD64": "amd64", "arm64": "arm64", "aarch64": "arm64"}.get(machine)
     if os_name is None or arch is None:
         raise SystemExit(f"actionlint: unsupported platform {system}/{machine}")
     return f"{os_name}_{arch}.{'zip' if os_name == 'windows' else 'tar.gz'}"
