@@ -43,7 +43,7 @@ class HidDeviceInfo:
         return f"{self.release_number >> 8:x}.{self.release_number & 0xFF:02x}"
 
 
-def _hid_enumerate(vendor_id: int, product_id: int) -> list[dict[str, Any]]:
+def hid_enumerate(vendor_id: int, product_id: int) -> list[dict[str, Any]]:
     import hid
 
     return hid.enumerate(vendor_id, product_id)
@@ -54,7 +54,7 @@ def find_devices(
     product_id: int = PRODUCT_ID,
     usage_page: int | None = USAGE_PAGE,
     *,
-    enumerate_fn: EnumerateFn = _hid_enumerate,
+    enumerate_fn: EnumerateFn = hid_enumerate,
 ) -> list[HidDeviceInfo]:
     """List HID interfaces matching VID/PID and, if given, the usage page.
 
