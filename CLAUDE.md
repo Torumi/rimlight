@@ -82,6 +82,8 @@ Rules:
 
 ```
 uv sync                         # install
+uv run prek install             # git hooks, once per clone (.pre-commit-config.yaml)
+uv run prek run --all-files     # all hooks on the whole repo
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
 uv run pytest                   # hardware tests are skipped by default
@@ -95,6 +97,8 @@ Before saying a task is done: ruff, pyright and pytest all pass.
 ## Tests
 
 - Mark tests needing the real strip with `@pytest.mark.hardware`; CI never runs them.
+- Mark tests that take over ~0.5 s on their own with `@pytest.mark.slow`: the pre-commit hook
+  skips them (it must stay under ~15 s), CI runs them.
 - Protocol tests use byte fixtures in `tests/fixtures/` extracted from captures.
 - Raw `.pcapng` captures live in `captures/` (gitignored); only small extracted fixtures are committed.
 
@@ -113,7 +117,11 @@ Full process: `docs/releasing.md`. Summary:
 - Versions: PEP 440 (`0.5.0a1`, `0.5.0b1`, `0.5.0rc1`, `0.5.0`), static in `pyproject.toml`.
   Never bump versions or create `v*` tags by hand: releases go through the
   `prepare-release` workflow; the rules live in `scripts/release_tools` (unit-tested).
-- GitHub Actions: `ci.yml` (ruff, format, pyright, pytest on Windows + Ubuntu) on PRs and pushes;
+- Git hooks (prek, `.pre-commit-config.yaml`): ruff fix/format, pyright, fast tests, file
+  hygiene, private keys, large files and captures, `uv lock --check`, actionlint + shellcheck,
+  no commits to `dev`/`main`/`release/*`. Don't bypass them with `--no-verify`.
+- GitHub Actions: `ci.yml` (ruff, format, pyright, pytest on Windows + Ubuntu, plus `hooks` on
+  all files) and `pr-title.yml` (Conventional Commit PR titles) on PRs and pushes;
   `dev-build.yml` (artifacts per dev push); release flow `prepare-release` → `tag-release` →
   `release`; `merge-back` (main → dev); `backport` (release/X.Y → main). Writing workflows
   act as a GitHub App; protection lives in `.github/rulesets/` (applied by `scripts/github/`).

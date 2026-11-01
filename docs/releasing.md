@@ -14,9 +14,14 @@ or deletes them.
 
 ### Working on a change
 
+0. Once per clone: `uv run prek install`. The hooks fix lint and formatting, type-check, run
+   the fast tests and block secrets, large files, captures and commits straight onto `dev`,
+   `main` or `release/*`. CI's `hooks` check runs the same hooks, so skipping them locally only
+   moves the failure to the PR.
 1. Branch off `dev`: `feat/<topic>` or `fix/<topic>`.
 2. Open a PR into `dev`. It is squash-merged, so the PR title becomes the commit: write it as a
-   Conventional Commit (`feat: ...`, `fix(device): ...`). The changelog is generated from these.
+   Conventional Commit (`feat: ...`, `fix(device): ...`); the required `pr-title` check enforces
+   this. The changelog is generated from these titles.
 3. Rebasing your own feature branch and `git push --force-with-lease` is fine.
 
 **Never rebase or force-push automation branches** (`merge-back/*` especially): their merge
@@ -88,7 +93,8 @@ automatically when `0.5.0` is released.
 
 | Workflow | Trigger | Does |
 |----------|---------|------|
-| `ci.yml` | PRs; pushes to `dev`, `main`, `release/**` | ruff, format check, pyright, pytest on Windows and Ubuntu |
+| `ci.yml` | PRs; pushes to `dev`, `main`, `release/**` | ruff, format check, pyright, pytest on Windows and Ubuntu; `hooks`: the git hooks on all files |
+| `pr-title.yml` | PR opened/edited | required `pr-title` check: Conventional Commit title |
 | `release-checklist.yml` | release-prep PR opened/edited | required `checklist` check |
 | `dev-build.yml` | push to `dev` | PyInstaller builds as artifacts |
 | `prepare-release.yml` | manual | validates, bumps, changelog, opens the release PR |

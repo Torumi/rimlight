@@ -30,7 +30,9 @@
         "required_status_checks": [
           { "context": "check (windows-latest)", "integration_id": 15368 },
           { "context": "check (ubuntu-latest)", "integration_id": 15368 },
-          { "context": "checklist", "integration_id": 15368 }
+          { "context": "checklist", "integration_id": 15368 },
+          { "context": "hooks", "integration_id": 15368 },
+          { "context": "pr-title", "integration_id": 15368 }
         ]
       }
     }
