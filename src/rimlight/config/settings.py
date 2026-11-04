@@ -1,5 +1,7 @@
 """Settings model and TOML persistence.
 
+Adding a setting means adding one field below; reading, validation and saving follow from it.
+
 A settings file is edited by hand and may come from another version, so loading never fails:
 invalid or unknown values are reported and the defaults used instead.
 """
@@ -7,13 +9,13 @@ invalid or unknown values are reported and the defaults used instead.
 import os
 import re
 import tomllib
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Annotated, Any, Final, cast
 
 import platformdirs
 import tomli_w
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSerializer, ValidationError
 
 from rimlight.device.rate_limit import DEFAULT_MAX_FPS, MAX_ALLOWED_FPS
 
@@ -21,22 +23,51 @@ FILE_NAME: Final = "settings.toml"
 
 _COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
-type Rgb = tuple[int, int, int]
+type _Channel = Annotated[int, Field(ge=0, le=255)]
 
 
-@dataclass(frozen=True, slots=True)
-class Settings:
-    led_count: int | None = None
+def _parse_color(value: Any) -> Any:
+    """Accept "#ff8800" from the file; tuples pass through for code building settings."""
+    if isinstance(value, str):
+        if not _COLOR.fullmatch(value):
+            raise ValueError('expected a color like "#ff8800"')
+        return (int(value[1:3], 16), int(value[3:5], 16), int(value[5:7], 16))
+    return value
+
+
+def _format_color(rgb: tuple[int, int, int]) -> str:
+    return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+
+type Color = Annotated[
+    tuple[_Channel, _Channel, _Channel],
+    BeforeValidator(_parse_color),
+    PlainSerializer(_format_color),
+]
+
+
+class _Model(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+
+class DeviceSettings(_Model):
+    led_count: int | None = Field(default=None, ge=1)
     """LEDs on the strip; None uses the count the device reports."""
-    max_fps: int = DEFAULT_MAX_FPS
-    color: Rgb = (255, 255, 255)
-    brightness: float = 1.0
-    """0.0-1.0."""
-    power_on: bool = True
+    max_fps: int = Field(default=DEFAULT_MAX_FPS, ge=1, le=MAX_ALLOWED_FPS)
 
 
-@dataclass(frozen=True, slots=True)
-class LoadResult:
+class LightSettings(_Model):
+    color: Color = (255, 255, 255)
+    brightness: float = Field(default=1.0, ge=0.0, le=1.0)
+    on: bool = True
+
+
+class Settings(_Model):
+    device: DeviceSettings = DeviceSettings()
+    light: LightSettings = LightSettings()
+
+
+class LoadResult(_Model):
     settings: Settings
     problems: tuple[str, ...] = ()
     """What was wrong with the file, for the log. Empty if it was fine or did not exist."""
@@ -46,67 +77,34 @@ def default_path() -> Path:
     return platformdirs.user_config_path("rimlight", appauthor=False, roaming=True) / FILE_NAME
 
 
-def _int_in(low: int, high: int) -> Callable[[Any], int]:
-    def parse(value: Any) -> int:
-        if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
-            raise ValueError(f"expected an integer {low}..{high}")
-        return value
-
-    return parse
-
-
-def _brightness(value: Any) -> float:
-    if isinstance(value, bool) or not isinstance(value, int | float) or not 0 <= value <= 1:
-        raise ValueError("expected a number 0.0..1.0")
-    return float(value)
-
-
-def _color(value: Any) -> Rgb:
-    if not isinstance(value, str) or not _COLOR.fullmatch(value):
-        raise ValueError('expected a color like "#ff8800"')
-    return (int(value[1:3], 16), int(value[3:5], 16), int(value[5:7], 16))
-
-
-def _bool(value: Any) -> bool:
-    if not isinstance(value, bool):
-        raise ValueError("expected true or false")
-    return value
-
-
-# TOML section and key -> Settings field and parser.
-_FIELDS: Final[dict[str, dict[str, tuple[str, Callable[[Any], Any]]]]] = {
-    "device": {
-        "led_count": ("led_count", _int_in(1, 10_000)),
-        "max_fps": ("max_fps", _int_in(1, MAX_ALLOWED_FPS)),
-    },
-    "light": {
-        "color": ("color", _color),
-        "brightness": ("brightness", _brightness),
-        "on": ("power_on", _bool),
-    },
-}
-
-
 def parse(data: Mapping[str, Any]) -> LoadResult:
-    settings = Settings()
-    problems: list[str] = []
-    for section, value in data.items():
-        fields = _FIELDS.get(section)
-        if fields is None:
-            problems.append(f"unknown section [{section}]")
-        elif not isinstance(value, dict):
-            problems.append(f"{section}: expected a section")
-        else:
-            for key, raw in cast(dict[str, Any], value).items():
-                if key not in fields:
-                    problems.append(f"unknown key {section}.{key}")
-                    continue
-                field, parser = fields[key]
-                try:
-                    settings = replace(settings, **{field: parser(raw)})
-                except ValueError as exc:
-                    problems.append(f"{section}.{key}: {exc}, got {raw!r}; using the default")
-    return LoadResult(settings, tuple(problems))
+    """Validate file contents, dropping only the values that are wrong."""
+    remaining = {
+        key: dict(cast(dict[str, Any], value)) if isinstance(value, dict) else value
+        for key, value in data.items()
+    }
+    problems: dict[str, str] = {}
+    while True:
+        try:
+            settings = Settings.model_validate(remaining)
+            return LoadResult(settings=settings, problems=tuple(problems.values()))
+        except ValidationError as exc:
+            for error in exc.errors():
+                # A setting is at most section.key: an error deeper than that drops all of it.
+                location = [str(part) for part in error["loc"][:2]]
+                name = ".".join(location)
+                problems.setdefault(name, _describe(name, error["type"], error["msg"]))
+                section = remaining.get(location[0])
+                if len(location) == 2 and isinstance(section, dict):
+                    cast(dict[str, Any], section).pop(location[1], None)
+                else:
+                    remaining.pop(location[0], None)
+
+
+def _describe(name: str, error_type: str, message: str) -> str:
+    if error_type == "extra_forbidden":
+        return f"unknown setting {name}"
+    return f"{name}: {message}; using the default"
 
 
 def load(path: Path | None = None) -> LoadResult:
@@ -115,33 +113,17 @@ def load(path: Path | None = None) -> LoadResult:
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return LoadResult(Settings())
+        return LoadResult(settings=Settings())
     except (OSError, UnicodeDecodeError) as exc:
-        return LoadResult(Settings(), (f"cannot read {path.name}: {exc}",))
+        return LoadResult(settings=Settings(), problems=(f"cannot read {path.name}: {exc}",))
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
         backup = path.with_name(path.name + ".invalid")
         os.replace(path, backup)
-        return LoadResult(
-            Settings(), (f"{path.name} is not valid TOML ({exc}); see {backup.name}",)
-        )
+        problem = f"{path.name} is not valid TOML ({exc}); see {backup.name}"
+        return LoadResult(settings=Settings(), problems=(problem,))
     return parse(data)
-
-
-def to_toml_data(settings: Settings) -> dict[str, dict[str, Any]]:
-    r, g, b = settings.color
-    device: dict[str, Any] = {"max_fps": settings.max_fps}
-    if settings.led_count is not None:
-        device["led_count"] = settings.led_count
-    return {
-        "device": device,
-        "light": {
-            "color": f"#{r:02x}{g:02x}{b:02x}",
-            "brightness": settings.brightness,
-            "on": settings.power_on,
-        },
-    }
 
 
 def save(settings: Settings, path: Path | None = None) -> None:
@@ -149,5 +131,6 @@ def save(settings: Settings, path: Path | None = None) -> None:
     path = path or default_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_bytes(tomli_w.dumps(to_toml_data(settings)).encode("utf-8"))
+    data = settings.model_dump(mode="json", exclude_none=True)
+    temporary.write_bytes(tomli_w.dumps(data).encode("utf-8"))
     os.replace(temporary, path)
