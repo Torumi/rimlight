@@ -62,9 +62,15 @@ class LightSettings(_Model):
     on: bool = True
 
 
+class RecoverySettings(_Model):
+    auto_reset: bool = True
+    """Restart a hung device automatically, if the restart task has been set up."""
+
+
 class Settings(_Model):
     device: DeviceSettings = DeviceSettings()
     light: LightSettings = LightSettings()
+    recovery: RecoverySettings = RecoverySettings()
 
 
 class LoadResult(_Model):
