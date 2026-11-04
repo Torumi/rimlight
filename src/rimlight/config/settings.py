@@ -15,9 +15,9 @@ from typing import Any, Final, cast
 import platformdirs
 import tomli_w
 
+from rimlight.device.rate_limit import DEFAULT_MAX_FPS, MAX_ALLOWED_FPS
+
 FILE_NAME: Final = "settings.toml"
-# The hardware-safety cap: see device/rate_limit.py.
-MAX_ALLOWED_FPS: Final = 60
 
 _COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
@@ -28,7 +28,7 @@ type Rgb = tuple[int, int, int]
 class Settings:
     led_count: int | None = None
     """LEDs on the strip; None uses the count the device reports."""
-    max_fps: int = MAX_ALLOWED_FPS
+    max_fps: int = DEFAULT_MAX_FPS
     color: Rgb = (255, 255, 255)
     brightness: float = 1.0
     """0.0-1.0."""
