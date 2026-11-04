@@ -21,7 +21,7 @@ from rimlight.device.drivers.strip_37fa_8202.protocol import (
     encode_led_count_query,
     encode_message,
 )
-from rimlight.device.transport import DeviceNotRespondingError
+from rimlight.device.transport import DeviceNotRespondingError, TransportError
 
 FIXTURES: dict[str, Any] = json.loads(
     (Path(__file__).parents[2] / "fixtures" / "strip_37fa_8202" / "reports.json").read_text(
@@ -105,7 +105,7 @@ def test_driver_read_led_count_and_initialize() -> None:
 def test_initialize_refuses_a_different_length() -> None:
     driver, transport = _driver(led_count=30)
     transport.pending_reads.append(_hex("led_count_response"))
-    with pytest.raises(ProtocolError, match="reports 57 LEDs"):
+    with pytest.raises(TransportError, match="reports 57 LEDs"):
         driver.initialize()
 
 
@@ -135,7 +135,7 @@ def test_stale_answers_are_skipped() -> None:
 def test_error_status_is_raised() -> None:
     driver, transport = _driver()
     transport.pending_reads.append(b"\x82\x00\x01\x05")
-    with pytest.raises(ProtocolError, match="failed"):
+    with pytest.raises(TransportError, match="failed"):
         driver.show(solid((0, 0, 0), 57))
 
 

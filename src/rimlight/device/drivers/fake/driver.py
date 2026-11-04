@@ -8,7 +8,7 @@ from rimlight.device.transport import Transport
 class FakeDriver(DeviceDriver):
     """Records what the engine asks for and writes made-up reports to its transport.
 
-    The reports (`b"I"`, `b"C" + colors`, `b"B" + level`, `b"P" + on`) are not any real
+    The reports (`b"I"`, `b"C" + colors`, `b"B" + level`, `b"P" + on`, `b"Q"`) are not any real
     device's protocol; they only let tests exercise transport behaviour such as errors.
     Never registered as a built-in driver.
     """
@@ -51,4 +51,5 @@ class FakeDriver(DeviceDriver):
         self.power.append(on)
 
     def read_led_count(self) -> int:
+        self.transport.write(b"Q")
         return self.led_count

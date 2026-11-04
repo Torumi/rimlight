@@ -12,6 +12,8 @@ class FakeTransport(Transport):
         self.written: list[bytes] = []
         self.pending_reads: deque[bytes] = deque()
         self.fail_next_write: TransportError | None = None
+        self.fail_writes: TransportError | None = None
+        """Every write fails with this, as with a device that has gone silent."""
         self.open_count = 0
         self._open = False
 
@@ -28,6 +30,8 @@ class FakeTransport(Transport):
 
     def write(self, report: bytes) -> int:
         self._require_open()
+        if self.fail_writes is not None:
+            raise self.fail_writes
         if self.fail_next_write is not None:
             error, self.fail_next_write = self.fail_next_write, None
             raise error
