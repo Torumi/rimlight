@@ -64,7 +64,7 @@ Scope and priorities: `docs/roadmap.md` (MoSCoW for 1.0, milestones 0.1–1.0). 
 ```
 src/rimlight/
   device/       # shared code only: driver.py (DeviceDriver ABC), transport.py (Transport ABC,
-                # HidTransport), discovery.py, registry.py (HID interface -> driver),
+                # HidTransport), discovery.py, rate_limit.py, registry.py (HID interface -> driver),
                 # manager.py (open/reopen, hotplug, resume recovery)
     drivers/    # one directory per device; __init__.py holds BUILTIN_DRIVERS
       strip_37fa_8202/  # __init__.py, driver.py, protocol.py (pure encode/decode, no I/O)

@@ -14,6 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from rimlight.device.discovery import HidDeviceInfo
+from rimlight.device.rate_limit import RateLimiter
 from rimlight.device.transport import Transport
 
 type LedColors = NDArray[np.uint8]
@@ -60,24 +61,28 @@ class DeviceDriver(ABC):
     match: ClassVar[DeviceMatch]
     capabilities: ClassVar[DeviceCapabilities]
 
-    def __init__(self, transport: Transport, led_count: int) -> None:
+    def __init__(
+        self, transport: Transport, led_count: int, *, rate_limiter: RateLimiter | None = None
+    ) -> None:
         caps = self.capabilities
         if not 1 <= led_count <= caps.max_led_count:
             raise ValueError(f"led_count must be 1..{caps.max_led_count}, got {led_count}")
         self.transport = transport
         self.led_count = led_count
+        self._rate_limiter = rate_limiter or RateLimiter()
 
     @abstractmethod
     def initialize(self) -> None:
         """Send whatever the device needs after every open, before it accepts colors."""
 
     def show(self, colors: LedColors) -> None:
-        """Display one color per LED."""
+        """Display one color per LED, waiting if frames come faster than the rate limit."""
         if colors.dtype != np.uint8 or colors.shape != (self.led_count, 3):
             raise ValueError(
                 f"expected uint8 colors of shape ({self.led_count}, 3), "
                 f"got {colors.dtype} {colors.shape}"
             )
+        self._rate_limiter.wait()
         self._show(colors)
 
     @abstractmethod
