@@ -18,7 +18,7 @@
   { "name": "needs-triage", "color": "fbca04", "description": "New; not reviewed by a maintainer yet" },
   { "name": "needs-repro", "color": "fbca04", "description": "Cannot reproduce; more details needed" },
   { "name": "needs-hardware-test", "color": "fbca04", "description": "Needs testing on real hardware or a setup the maintainers lack" },
-  { "name": "protocol", "color": "0e8a16", "description": "Device protocol research: captures and docs/protocol.md" },
+  { "name": "protocol", "color": "0e8a16", "description": "Device protocol research: captures and docs/protocols/" },
   { "name": "good first issue", "color": "7057ff", "description": "Small, well-defined task for newcomers" },
   { "name": "help wanted", "color": "008672", "description": "Not planned by maintainers soon; PRs welcome" },
   { "name": "wontfix", "color": "ffffff", "description": "Will not be worked on; see the closing comment" },

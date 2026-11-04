@@ -1,6 +1,7 @@
 import pytest
 
-from rimlight.device.transport import FakeTransport, TransportClosedError, TransportError
+from rimlight.device.drivers.fake import FakeTransport
+from rimlight.device.transport import TransportClosedError, TransportError
 
 
 def test_records_written_reports() -> None:

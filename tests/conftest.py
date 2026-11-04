@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from rimlight.device.ids import PRODUCT_ID, USAGE_PAGE, VENDOR_ID
+from rimlight.device.drivers.strip_37fa_8202.driver import PRODUCT_ID, USAGE_PAGE, VENDOR_ID
 
 
 def hid_entry(**overrides: Any) -> dict[str, Any]:

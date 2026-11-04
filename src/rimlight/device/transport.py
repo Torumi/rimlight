@@ -1,7 +1,6 @@
-"""Transport abstraction. Everything above this layer runs against `FakeTransport` in tests."""
+"""Transport abstraction and the HID transport. Tests use `drivers.fake.FakeTransport`."""
 
 from abc import ABC, abstractmethod
-from collections import deque
 from types import TracebackType
 from typing import TYPE_CHECKING, Self
 
@@ -56,46 +55,8 @@ class Transport(ABC):
         self.close()
 
 
-class FakeTransport(Transport):
-    """In-memory transport that records written reports and replays queued input reports."""
-
-    def __init__(self) -> None:
-        self.written: list[bytes] = []
-        self.pending_reads: deque[bytes] = deque()
-        self.fail_next_write: TransportError | None = None
-        self.open_count = 0
-        self._open = False
-
-    def open(self) -> None:
-        self._open = True
-        self.open_count += 1
-
-    def close(self) -> None:
-        self._open = False
-
-    @property
-    def is_open(self) -> bool:
-        return self._open
-
-    def write(self, report: bytes) -> int:
-        self._require_open()
-        if self.fail_next_write is not None:
-            error, self.fail_next_write = self.fail_next_write, None
-            raise error
-        self.written.append(bytes(report))
-        return len(report)
-
-    def read(self, size: int, timeout_ms: int = 0) -> bytes:
-        self._require_open()
-        return self.pending_reads.popleft()[:size] if self.pending_reads else b""
-
-    def _require_open(self) -> None:
-        if not self._open:
-            raise TransportClosedError("transport is not open")
-
-
 class HidTransport(Transport):
-    """HID transport via hidapi. Drivers decide what is sent, per docs/protocol.md."""
+    """HID transport via hidapi. Drivers decide what is sent, per their spec in docs/protocols/."""
 
     def __init__(self, info: HidDeviceInfo) -> None:
         self.info = info

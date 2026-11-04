@@ -1,4 +1,4 @@
-"""Interactive check of docs/protocol.md on the real strip, run by the maintainer.
+"""Interactive check of docs/protocols/strip_37fa_8202.md on the real strip, run by the maintainer.
 
 Answers the spec's open questions and confirms the "likely" reports. Sends only the documented
 commands 0x03 (LED count) and 0x02 (color frame); the queries 06-0c are never sent.

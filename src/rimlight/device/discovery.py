@@ -4,8 +4,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from rimlight.device.ids import PRODUCT_ID, USAGE_PAGE, VENDOR_ID
-
 type EnumerateFn = Callable[[int, int], list[dict[str, Any]]]
 
 
@@ -50,9 +48,9 @@ def hid_enumerate(vendor_id: int, product_id: int) -> list[dict[str, Any]]:
 
 
 def find_devices(
-    vendor_id: int = VENDOR_ID,
-    product_id: int = PRODUCT_ID,
-    usage_page: int | None = USAGE_PAGE,
+    vendor_id: int,
+    product_id: int,
+    usage_page: int | None = None,
     *,
     enumerate_fn: EnumerateFn = hid_enumerate,
 ) -> list[HidDeviceInfo]:

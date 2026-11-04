@@ -13,8 +13,8 @@
       "labels": ["area: device", "protocol"],
       "summary": "Send the init/handshake sequence the strip needs before it accepts color data, as derived from captures.",
       "done_when": [
-        "The sequence is documented in docs/protocol.md with the captures it comes from",
-        "Encoders in device/protocol.py are tested against fixtures from real captures",
+        "The sequence is documented in docs/protocols/strip_37fa_8202.md with the captures it comes from",
+        "Encoders in the driver's protocol.py are tested against fixtures from real captures",
         "The device manager sends it after every open and reopen"
       ]
     },
@@ -24,7 +24,7 @@
       "labels": ["area: device", "protocol"],
       "summary": "Encode and send a single color for all LEDs.",
       "done_when": [
-        "The color report is documented in docs/protocol.md",
+        "The color report is documented in docs/protocols/strip_37fa_8202.md",
         "Encoder is fixture-tested; behaviour is checked on the real strip"
       ]
     },
@@ -44,7 +44,7 @@
       "labels": ["area: device", "protocol"],
       "summary": "Switch the strip off and back on, restoring the previous state.",
       "done_when": [
-        "The power report (or the documented equivalent) is in docs/protocol.md",
+        "The power report (or the documented equivalent) is in docs/protocols/strip_37fa_8202.md",
         "Off/on from CLI and tray restores the last color and brightness"
       ]
     },
@@ -201,7 +201,7 @@
       "labels": ["area: device", "protocol"],
       "summary": "Send a different color to every LED in one frame.",
       "done_when": [
-        "Frame layout (LED order, channel order, multi-report frames) documented in docs/protocol.md",
+        "Frame layout (LED order, channel order, multi-report frames) documented in docs/protocols/strip_37fa_8202.md",
         "Encoder fixture-tested; verified on hardware with test patterns"
       ]
     },

@@ -29,15 +29,15 @@ Scope and priorities: `docs/roadmap.md` (MoSCoW for 1.0, milestones 0.1–1.0). 
   and behavior observed on the device.
 - Never decompile, disassemble, or read the vendor app's binaries, installers,
   JS bundles, or resources. Never copy vendor code, assets, effect definitions, or strings.
-- `docs/protocol.md` is the spec. Implementation follows the spec only.
-  Every field in the spec cites the capture file(s) it was derived from.
+- `docs/protocols/<device>.md` is the spec (rules in `docs/protocols/README.md`). Implementation
+  follows the spec only. Every field in the spec cites the capture file(s) it was derived from.
 - Firmware updates stay with the vendor app. This project never sends firmware/DFU traffic.
 
 ## Hardware safety
 
 - Device: USB HID, `VID 0x37FA`, `PID 0x8202`, vendor usage page `0xFF00`, usage `0x01`.
 - Strip ships with 75 LEDs but can be cut; LED count is a user setting, never hard-coded.
-- **Only send report types documented in `docs/protocol.md`.** No fuzzing, no probing of
+- **Only send report types documented in the device's spec.** No fuzzing, no probing of
   unknown command bytes, no "let's see what this does". Unknown/unsure → ask the user.
 - Rate-limit writes (default cap 60 fps). Always close the device handle cleanly.
 - Code that talks to real hardware must be behind the `Transport` interface so everything
@@ -63,11 +63,12 @@ Scope and priorities: `docs/roadmap.md` (MoSCoW for 1.0, milestones 0.1–1.0). 
 
 ```
 src/rimlight/
-  device/       # protocol.py (pure encode/decode, no I/O), transport.py (Transport ABC,
-                # HidTransport, FakeTransport), driver.py (DeviceDriver ABC: generic requests ->
-                # one device family's reports), drivers/ (one module per device; BUILTIN_DRIVERS),
-                # registry.py (HID interface -> driver), fake.py (FakeDriver for tests),
+  device/       # shared code only: driver.py (DeviceDriver ABC), transport.py (Transport ABC,
+                # HidTransport), discovery.py, registry.py (HID interface -> driver),
                 # manager.py (open/reopen, hotplug, resume recovery)
+    drivers/    # one directory per device; __init__.py holds BUILTIN_DRIVERS
+      strip_37fa_8202/  # __init__.py, driver.py, protocol.py (pure encode/decode, no I/O)
+      fake/             # __init__.py, driver.py, transport.py: test doubles, not registered
   capture/      # base.py (CaptureBackend protocol), windows_dxgi.py, linux_x11.py, linux_portal.py
   mapping/      # zone layout: LED index -> screen region, corner/edge calibration
   processing/   # averaging, smoothing, gamma, color temperature, brightness
@@ -79,7 +80,12 @@ src/rimlight/
 ```
 
 Rules:
-- `device/protocol.py` is pure and fully unit-tested against fixtures from real captures.
+- Shared `device/` modules know nothing about a specific device; only `registry.py` reaches
+  `drivers/`, for `BUILTIN_DRIVERS`. Each device directory has `__init__.py` (exports the driver),
+  `driver.py` and `protocol.py`, with spec, fixtures and tests under `docs/protocols/<device>.md`,
+  `tests/fixtures/<device>/`, `tests/device/<device>/`. Architecture tests enforce this;
+  `docs/adding-a-device.md` is the walkthrough.
+- A device's `protocol.py` is pure and fully unit-tested against fixtures from real captures.
 - Engine, UI and CLI talk to `DeviceDriver`s only, never to one device's protocol. Drivers
   declare `DeviceCapabilities`; the engine emulates what a device lacks (e.g. brightness).
 - Core packages never import PySide6. UI talks to the engine via signals/a thin facade.

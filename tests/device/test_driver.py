@@ -6,11 +6,16 @@ from conftest import hid_entry
 
 from rimlight.device.discovery import HidDeviceInfo
 from rimlight.device.driver import DeviceMatch, solid
+from rimlight.device.drivers.fake import FakeDriver, FakeTransport
 from rimlight.device.drivers.strip_37fa_8202 import Strip37FA8202Driver
-from rimlight.device.fake import FakeDriver
-from rimlight.device.ids import PRODUCT_ID, USAGE, USAGE_PAGE, VENDOR_ID
+from rimlight.device.drivers.strip_37fa_8202.driver import (
+    PRODUCT_ID,
+    USAGE,
+    USAGE_PAGE,
+    VENDOR_ID,
+)
 from rimlight.device.registry import DriverRegistry, default_registry
-from rimlight.device.transport import FakeTransport, TransportError
+from rimlight.device.transport import TransportError
 
 
 def _info(**overrides: Any) -> HidDeviceInfo:

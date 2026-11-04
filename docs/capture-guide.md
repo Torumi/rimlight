@@ -1,6 +1,6 @@
 # Capturing USB traffic
 
-How to record the strip's USB traffic for [protocol.md](protocol.md). Captures are the only
+How to record the strip's USB traffic for the device's spec in [protocols/](protocols/README.md). Captures are the only
 allowed source of protocol knowledge, so a clean, well-labelled capture matters more than a
 long one.
 
@@ -78,4 +78,4 @@ transfers to and from the device:
 tshark -r captures/02-solid-red-100.pcapng -Y "usb.device_address == 7" -T fields -e frame.number -e frame.time_relative -e usb.endpoint_address -e usb.transfer_type -e usbhid.data -e usb.capdata
 ```
 
-Findings go into `protocol.md`, each field citing the capture file(s) it came from.
+Findings go into the device's spec in `docs/protocols/`, each field citing the capture file(s) it came from.

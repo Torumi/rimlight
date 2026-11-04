@@ -1,4 +1,4 @@
-"""Built-in device drivers. Adding a device = adding a module here and listing its driver."""
+"""Built-in device drivers, one directory per device. See docs/adding-a-device.md."""
 
 from rimlight.device.driver import DeviceDriver
 from rimlight.device.drivers.strip_37fa_8202 import Strip37FA8202Driver

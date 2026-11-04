@@ -19,7 +19,7 @@ by itself after resume.
 
 rimlight is an independent, clean-room implementation. The protocol is documented only from
 USB traffic captured on our own hardware and from observed device behavior
-([docs/protocol.md](docs/protocol.md), [docs/capture-guide.md](docs/capture-guide.md)).
+([docs/protocols/](docs/protocols/README.md), [docs/capture-guide.md](docs/capture-guide.md)).
 No vendor software is decompiled, disassembled or copied, and rimlight never sends firmware
 updates; use the vendor app for those.
 
