@@ -2,7 +2,9 @@
 
 import argparse
 import json
+import logging
 import sys
+import time
 from collections.abc import Sequence
 
 from rimlight import __version__
@@ -61,7 +63,7 @@ def _cmd_recovery(args: argparse.Namespace) -> int:
     resetter = create_resetter(default_registry().drivers[0].match)
     if resetter is None:
         print("Automatic device restart is not available on this system yet.", file=sys.stderr)
-        return 1
+        return 0 if args.action == "status" else 1
 
     def set_auto_reset(enabled: bool) -> None:
         recovery = RecoverySettings(auto_reset=enabled)
@@ -97,6 +99,72 @@ def _cmd_recovery(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_set(args: argparse.Namespace) -> int:
+    from pydantic import ValidationError
+
+    from rimlight.config.settings import LightSettings, load, save
+
+    changes: dict[str, object] = {}
+    if args.color is not None:
+        changes["color"] = args.color
+    if args.brightness is not None:
+        changes["brightness"] = args.brightness / 100
+    if args.on is not None:
+        changes["on"] = args.on
+    if not changes:
+        print("Nothing to set; see --help.", file=sys.stderr)
+        return 1
+    settings = load().settings
+    try:
+        # Through the serialized form, so the color is validated like one from the file.
+        current = settings.light.model_dump(mode="json")
+        light = LightSettings.model_validate(current | changes)
+    except ValidationError as exc:
+        print(f"Invalid value: {exc.errors()[0]['msg']}", file=sys.stderr)
+        return 1
+    save(settings.model_copy(update={"light": light}))
+    print("Saved. A running `rimlight-cli run` picks this up when restarted.")
+    return 0
+
+
+def _cmd_run(_args: argparse.Namespace) -> int:
+    from rimlight.config.settings import load
+    from rimlight.device.manager import DeviceState
+    from rimlight.headless import available_resetter, run_with_defaults
+    from rimlight.logs import setup_logging, stop_logging
+
+    setup_logging()
+    result = load()
+    for problem in result.problems:
+        logging.getLogger(__name__).warning("settings: %s", problem)
+        print(f"Settings: {problem}", file=sys.stderr)
+
+    def on_state(state: DeviceState) -> None:
+        print(f"{time.strftime('%H:%M:%S')} {state.name}", flush=True)
+
+    def wait() -> None:
+        print("Running. Press Ctrl+C to stop.", flush=True)
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            pass
+
+    registry = default_registry()
+    resetter = available_resetter(registry, result.settings)
+    if resetter is not None:
+        print("Automatic restart of a hung device: on.")
+    else:
+        print("Automatic restart of a hung device: off (see `rimlight-cli recovery`).")
+    try:
+        run_with_defaults(
+            result.settings, registry, resetter=resetter, wait=wait, on_state=on_state
+        )
+    finally:
+        stop_logging()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rimlight-cli", description=__doc__)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -127,6 +195,19 @@ def build_parser() -> argparse.ArgumentParser:
         "remove deletes it",
     )
     p_recovery.set_defaults(func=_cmd_recovery)
+
+    p_set = sub.add_parser("set", help="change the saved light settings")
+    p_set.add_argument("--color", help='color like "#ff8800"')
+    p_set.add_argument("--brightness", type=float, help="brightness in percent, 0-100")
+    power = p_set.add_mutually_exclusive_group()
+    power.add_argument("--on", action="store_true", default=None, help="turn the light on")
+    power.add_argument("--off", dest="on", action="store_false", help="turn the light off")
+    p_set.set_defaults(func=_cmd_set)
+
+    p_run = sub.add_parser(
+        "run", help="hold the saved light without a window, recovering the device as needed"
+    )
+    p_run.set_defaults(func=_cmd_run)
     return parser
 
 

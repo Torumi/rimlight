@@ -76,6 +76,7 @@ src/rimlight/
   engine/       # frame loop: capture -> mapping -> processing -> device; modes (mirror, static, effect)
   config/       # settings model + TOML persistence (platformdirs)
   ui/           # PySide6 window, tray, zone editor, live preview
+  headless.py   # wires manager, power events and restart together for `rimlight-cli run`
   logs.py       # logging setup: one file per session in logs/, uncaught exceptions
   diagnostics.py # bug report text (identifiers masked)
   cli.py        # debug CLI: list devices, diagnostics, set color, run mirror headless, dump reports
