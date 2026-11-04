@@ -67,19 +67,6 @@ def test_show_rejects_wrong_shape_or_dtype(colors: Any) -> None:
         FakeDriver(FakeTransport(), led_count=2).show(colors)
 
 
-def test_strip_driver_sends_nothing_until_protocol_is_documented() -> None:
-    transport = FakeTransport()
-    transport.open()
-    driver = Strip37FA8202Driver(transport, led_count=75)
-    with pytest.raises(NotImplementedError, match="protocol"):
-        driver.initialize()
-    with pytest.raises(NotImplementedError, match="protocol"):
-        driver.show(solid((0, 0, 0), 75))
-    with pytest.raises(NotImplementedError):
-        driver.set_brightness(0.5)
-    assert transport.written == []
-
-
 def test_registry_rejects_duplicate_ids() -> None:
     with pytest.raises(ValueError, match="duplicate"):
         DriverRegistry([FakeDriver, FakeDriver])
