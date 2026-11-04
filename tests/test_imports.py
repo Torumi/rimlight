@@ -25,6 +25,7 @@ CORE_MODULES = [
     "rimlight.power.factory",
     "rimlight.engine",
     "rimlight.config",
+    "rimlight.config.settings",
     "rimlight.ui",
 ]
 
