@@ -1,5 +1,5 @@
 {
-  "_comment": "Byte fixtures extracted from local captures; see docs/protocol.md. Hex of 64-byte HID reports.",
+  "_comment": "Byte fixtures extracted from local captures; see docs/protocols/strip_37fa_8202.md. Hex of 64-byte HID reports.",
   "led_count_request": {
     "source": "00-plug-in frame 41",
     "report": "03000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"

@@ -1,16 +1,15 @@
 """Driver for the USB HID LED strip 37FA:8202 (see README for compatibility).
 
-Implements docs/protocol.md. Every request is answered by the device, and that answer is the
-health signal: after sleep/resume the device can keep accepting writes without processing them,
-so a missing answer raises `DeviceNotRespondingError` (docs/protocol.md, Sleep / resume).
+Implements docs/protocols/strip_37fa_8202.md. Every request is answered by the device, and that
+answer is the health signal: after sleep/resume the device can keep accepting writes without
+processing them, so a missing answer raises `DeviceNotRespondingError` (spec, Sleep / resume).
 """
 
 import time
 from typing import Final
 
 from rimlight.device.driver import DeviceCapabilities, DeviceDriver, DeviceMatch, LedColors
-from rimlight.device.ids import PRODUCT_ID, USAGE, USAGE_PAGE, VENDOR_ID
-from rimlight.device.protocol import (
+from rimlight.device.drivers.strip_37fa_8202.protocol import (
     COMMAND_FRAME,
     COMMAND_LED_COUNT,
     REPORT_SIZE,
@@ -23,6 +22,11 @@ from rimlight.device.protocol import (
     encode_led_count_query,
 )
 from rimlight.device.transport import DeviceNotRespondingError
+
+VENDOR_ID: Final = 0x37FA
+PRODUCT_ID: Final = 0x8202
+USAGE_PAGE: Final = 0xFF00
+USAGE: Final = 0x01
 
 # The device has no report IDs; hidapi takes a leading 0 in that case.
 _NO_REPORT_ID: Final = b"\x00"
@@ -45,7 +49,7 @@ class Strip37FA8202Driver(DeviceDriver):
         if count != self.led_count:
             raise ProtocolError(
                 f"device reports {count} LEDs but the driver was set up for {self.led_count}; "
-                "frames of a different length are not documented in docs/protocol.md"
+                "frames of a different length are not documented in its spec"
             )
 
     def read_led_count(self) -> int:

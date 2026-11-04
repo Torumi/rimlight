@@ -1,7 +1,7 @@
 """Device driver interface.
 
 A driver turns generic requests (show these LED colors, set brightness, power) into the reports
-of one device family, as documented in docs/protocol.md, and sends them through a `Transport`.
+of one device family, as documented in docs/protocols/, and sends them through a `Transport`.
 Everything above this layer (engine, UI, CLI) talks to drivers only, so supporting another
 device means adding a driver, not changing the engine.
 """

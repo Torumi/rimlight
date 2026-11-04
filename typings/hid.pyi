@@ -1,6 +1,6 @@
 # Minimal type stub for cython-hidapi (`hidapi` on PyPI), which ships without types.
 # Only the calls rimlight actually uses are declared. Feature-report methods are intentionally
-# absent: docs/protocol.md documents no feature reports.
+# absent: no spec in docs/protocols/ documents feature reports.
 
 from typing import Any
 

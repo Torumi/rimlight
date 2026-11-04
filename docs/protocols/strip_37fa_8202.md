@@ -7,24 +7,9 @@ Status: **framing, color frames and the LED-count query confirmed**: derived fro
 2026-11-04, see Verification). Brightness and power have no device commands.
 
 This file is the single source of truth for how rimlight talks to the strip. Code in
-`src/rimlight/device/` implements only what is written here.
+`src/rimlight/device/drivers/strip_37fa_8202/` implements only what is written here.
 
-## Rules
-
-- Knowledge comes only from USB traffic captured by the project (see
-  [capture-guide.md](capture-guide.md)) and from behavior observed on the device.
-  No decompilation or reading of vendor software.
-- Every field cites the capture file(s) it was derived from (`NN-scenario.pcapng`, frame
-  numbers where useful). Captures contributed by others are cited by their "Protocol capture"
-  issue (`#123: 02-solid-red-100`).
-- Confidence levels: **confirmed** (seen in ≥2 captures and reproduced by rimlight on the
-  device), **likely** (consistent across captures, not yet reproduced), **guess** (single
-  observation or meaning not understood).
-- rimlight sends only reports whose fields are **confirmed**. A **likely** report may be sent
-  only by hardware verification tests the maintainer runs on purpose (`pytest -m hardware`),
-  to confirm it. **Guess** reports are never sent.
-- Byte offsets are 0-based and count from the first byte of the 64-byte HID report (there is
-  no report ID byte; see Transport).
+Rules and confidence levels: [README.md](README.md).
 
 ## Captures index
 

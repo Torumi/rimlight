@@ -99,7 +99,7 @@ uv run rimlight-cli list         # find the strip (read-only)
   interface, so tests run against `FakeTransport`. Mark tests that need the real strip with
   `@pytest.mark.hardware`, and tests that take over ~0.5 s on their own with
   `@pytest.mark.slow`.
-- **Hardware safety**: only send reports documented in `docs/protocol.md`. No probing or fuzzing
+- **Hardware safety**: only send reports documented in the device's spec in `docs/protocols/`. No probing or fuzzing
   of unknown commands.
 - Say in the PR how you tested it, especially whether on real hardware.
 
@@ -138,8 +138,13 @@ USB captures from more devices and firmware versions speed up the protocol work.
    can contain other USB devices, including your keyboard.
 3. Open a **Protocol capture** issue and attach the file.
 
-Raw captures never go into the repository. Findings go into `docs/protocol.md` with a reference
+Raw captures never go into the repository. Findings go into the device's spec in `docs/protocols/` with a reference
 to the issue, and small extracted byte fixtures go into `tests/fixtures/` through a PR.
+
+## Supporting another device
+
+Each device has its own driver directory, spec, fixtures and tests. See
+[docs/adding-a-device.md](docs/adding-a-device.md).
 
 ## Releases
 

@@ -1,4 +1,6 @@
-"""Pure encode/decode of the 37FA:8202 strip's messages, as specified in docs/protocol.md. No I/O.
+"""Pure encode/decode of the 37FA:8202 strip's messages. No I/O.
+
+Spec: docs/protocols/strip_37fa_8202.md.
 
 Requests are `[command, length (u16 big-endian), payload]`, responses
 `[command | 0x80, length, status, data]`, where length counts status + data. A message longer
@@ -22,7 +24,7 @@ STATUS_OK: Final = 0x00
 
 
 class ProtocolError(Exception):
-    """A report does not follow docs/protocol.md."""
+    """A report does not follow the spec."""
 
 
 @dataclass(frozen=True, slots=True)

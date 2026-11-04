@@ -8,8 +8,9 @@ import numpy as np
 import pytest
 
 from rimlight.device.driver import solid
+from rimlight.device.drivers.fake import FakeTransport
 from rimlight.device.drivers.strip_37fa_8202 import Strip37FA8202Driver
-from rimlight.device.protocol import (
+from rimlight.device.drivers.strip_37fa_8202.protocol import (
     COMMAND_FRAME,
     COMMAND_LED_COUNT,
     REPORT_SIZE,
@@ -20,10 +21,12 @@ from rimlight.device.protocol import (
     encode_led_count_query,
     encode_message,
 )
-from rimlight.device.transport import DeviceNotRespondingError, FakeTransport
+from rimlight.device.transport import DeviceNotRespondingError
 
 FIXTURES: dict[str, Any] = json.loads(
-    (Path(__file__).parent / "fixtures" / "strip_37fa_8202.json").read_text(encoding="utf-8")
+    (Path(__file__).parents[2] / "fixtures" / "strip_37fa_8202" / "reports.json").read_text(
+        encoding="utf-8"
+    )
 )
 
 

@@ -32,7 +32,7 @@ New issues get `needs-triage` from their template. Triage means: reproduce or as
 (`needs-repro`), add type, `area:` and `os:` labels, link duplicates, set a milestone if it is
 planned, and remove `needs-triage`. Say "no" early (`wontfix`, with a reason) rather than leaving
 issues open. Protocol captures attached to issues are reviewed for privacy before any finding
-from them goes into `docs/protocol.md`.
+from them goes into the device's spec in `docs/protocols/`.
 
 ## Versions
 
