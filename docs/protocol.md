@@ -100,10 +100,10 @@ Source: all captures; reassembly checked over every report. Confidence: **likely
 | Cmd | Request payload | Response data | Meaning | Source | Confidence |
 |-----|-----------------|---------------|---------|--------|------------|
 | `0x02` | colors, 3 bytes per LED | none (status only) | show a color frame | all captures | likely |
-| `0x03` | none | u16 big-endian: `0x0039` = 57 | number of LEDs the device drives | 00 f41–43, 01 f23–25, 09 f113–115 | likely (value matches the 57 colors per frame) |
-| `0x06` | none | u16: `0x0001` | unknown | 00, 01, 09 | guess |
-| `0x08` | none | u16: `0x00ff` = 255 | unknown | 00, 01, 09 | guess |
-| `0x0a` | none | u16: `0x0015` = 21 | unknown | 00, 01, 09 | guess |
+| `0x03` | none | 1 byte: `0x39` = 57 | number of LEDs the device drives | 00 f41–43, 01 f23–25, 09 f113–115 | likely (value matches the 57 colors per frame) |
+| `0x06` | none | 1 byte: `0x01` | unknown | 00, 01, 09 | guess |
+| `0x08` | none | 1 byte: `0xff` = 255 | unknown | 00, 01, 09 | guess |
+| `0x0a` | none | 1 byte: `0x15` = 21 | unknown | 00, 01, 09 | guess |
 | `0x0b` | none | 2 ASCII characters (`"13"`) | unknown; possibly a firmware version | 00, 01, 09 | guess |
 | `0x0c` | none | 6 ASCII characters | unknown; looks like a model identifier | 00, 01, 09 | guess |
 
@@ -137,7 +137,8 @@ answered before the next, then starts frames (01 frames 23–47, 09 frames 113�
 41–65). Identical in all three captures. Confidence: **likely** for the sequence; the meaning
 of `06`–`0c` is a **guess**.
 
-rimlight's driver starts with `0x03` (it needs the LED count). Whether the device accepts frames
+rimlight's driver starts with `0x03` (it needs the LED count) and refuses to send frames of any
+other length, since none have been observed. Whether the device accepts frames
 without the other queries is the first thing to verify on hardware. If it does not, replaying
 `06`–`0c` exactly as observed needs a maintainer decision recorded here first: they look like
 read-only queries, but their meaning is a guess, and guess reports are not sent.

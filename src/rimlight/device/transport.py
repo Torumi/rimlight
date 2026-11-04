@@ -19,6 +19,10 @@ class TransportClosedError(TransportError):
     """Operation attempted on a transport that is not open."""
 
 
+class DeviceNotRespondingError(TransportError):
+    """The device did not answer in time, even if writes still succeed."""
+
+
 class Transport(ABC):
     @abstractmethod
     def open(self) -> None: ...
@@ -91,11 +95,7 @@ class FakeTransport(Transport):
 
 
 class HidTransport(Transport):
-    """HID transport via hidapi.
-
-    Phase 0: can open and close the interface, but sends and reads nothing until the
-    reports are documented in docs/protocol.md.
-    """
+    """HID transport via hidapi. Drivers decide what is sent, per docs/protocol.md."""
 
     def __init__(self, info: HidDeviceInfo) -> None:
         self.info = info
@@ -123,7 +123,24 @@ class HidTransport(Transport):
         return self._device is not None
 
     def write(self, report: bytes) -> int:
-        raise NotImplementedError("writing is disabled until docs/protocol.md documents reports")
+        device = self._require_device()
+        try:
+            written = device.write(report)
+        except (OSError, ValueError) as exc:
+            raise TransportError(f"write failed: {exc}") from exc
+        if written < 0:
+            raise TransportError("write failed")
+        return written
 
     def read(self, size: int, timeout_ms: int = 0) -> bytes:
-        raise NotImplementedError("reading is disabled until docs/protocol.md documents reports")
+        device = self._require_device()
+        try:
+            # hidapi treats a timeout of 0 as "block forever", ours means "do not wait long".
+            return bytes(device.read(size, max(1, timeout_ms)))
+        except (OSError, ValueError) as exc:
+            raise TransportError(f"read failed: {exc}") from exc
+
+    def _require_device(self) -> "hid.device":
+        if self._device is None:
+            raise TransportClosedError("transport is not open")
+        return self._device
