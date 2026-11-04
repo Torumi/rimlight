@@ -18,7 +18,9 @@ classifiers = [
 dependencies = [
     "hidapi>=0.15.0",
     "numpy>=2.5.4",
+    "platformdirs>=4.14.4",
     "pyside6-essentials>=6.12.0",
+    "tomli-w>=1.2.0",
 ]
 
 [project.scripts]
