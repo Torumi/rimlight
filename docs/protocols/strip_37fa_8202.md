@@ -166,14 +166,30 @@ aborted), it re-enumerates at address 14 (frame 11) and answers one `0x83`; a se
 (frames 49–58) re-enumerates it at address 15, the app runs the init sequence and frames are
 acknowledged again (frames 113–137).
 
-Conclusions for recovery (issue #21, **likely**):
+Experiments without the vendor app (`scripts/dev_tools/verify_sleep.py`, Windows, S3 sleep of
+about 35 s, 2026-11-04). The strip answered `0x03` before every sleep:
 
-- After resume the device can stay on the bus, accept writes, and not process them. A write
-  error is **not** a reliable signal; a **missing `0x82` acknowledgement** within a timeout is.
-- Reopening the HID handle alone is unlikely to help (the host side is healthy in 08). A USB
-  port cycle or device restart brings the device back; the init sequence must follow.
+| Before sleep | After wake |
+|--------------|------------|
+| frames streaming into sleep | first frame unanswered |
+| handle open, no frames | no answer on the same handle (60 s) or a new handle (90 s) |
+| frames for 15 s, then stopped and handle closed | no answer on a new handle (90 s) |
+| handle closed | no answer on a new handle (90 s); at the end the device was not enumerated |
+
+Recovery of a silent strip: an elevated `pnputil /restart-device` on the `USB\VID_37FA&PID_8202`
+node made it answer `0x03` at once (one run; frames not checked in that run). A port cycle in
+USB Device Tree Viewer, run as administrator, also brought it back between the runs above.
+
+Conclusions for recovery (issue #21, **confirmed** on one PC):
+
+- The device stops answering after S3 sleep whatever the host does before it: frames, an open
+  handle, or neither. rimlight cannot prevent this with the commands it knows.
+- A write error is **not** a reliable signal, since writes can still succeed (08). A **missing
+  answer** within a timeout is.
+- Reopening the handle does not help. Restarting the device does, which needs administrator rights
+  on Windows.
 - Earlier, outside these captures, the HID node showed Code 28 after resume. Not observed
-  in 08; recorded as a second form of the same failure.
+  in these runs; recorded as a possible second form of the same failure.
 
 ## 6. Unknown
 
@@ -202,7 +218,7 @@ sending only `0x03` and `0x02`:
 
 1. LED order: direction and start side around the screen (capture with a top/bottom split, or
    note where the physical start is mounted). rimlight's layout settings make this configurable.
-2. Can a port cycle or device restart be done without administrator rights on Windows?
+2. Does the failure also happen with Modern Standby, or on other PCs and Linux?
 3. Does the device report its cut length on its own, or was it stored by the vendor app at setup?
    Only matters if the strip is cut again.
 4. Is there a time limit beyond the observed 30 s without frames? (Sleep/resume aside.)
