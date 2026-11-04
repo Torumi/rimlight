@@ -4,6 +4,7 @@ It may end up in a public issue, so unit identifiers are masked and the home dir
 contains the user name) is removed.
 """
 
+import json
 import os
 import platform
 import sys
@@ -62,7 +63,7 @@ def _devices_section() -> list[str]:
         return [f"listing devices failed: {exc}"]
     if not devices:
         return ["no supported devices found"]
-    return [repr(device_entry(device)) for device in devices]
+    return [json.dumps(device_entry(device), indent=2) for device in devices]
 
 
 def collect_report(log_path: Path | None = None) -> str:

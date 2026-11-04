@@ -34,6 +34,15 @@ def test_report_masks_identifiers_and_home(
     assert "opened ~" in report
 
 
+def test_report_prints_each_device_field_on_its_own_line(
+    tmp_path: Path, fake_enumeration: list[dict[str, Any]]
+) -> None:
+    fake_enumeration.append(hid_entry())
+    lines = collect_report(tmp_path / "missing.log").splitlines()
+    assert '  "driver": "37fa:8202",' in lines
+    assert '  "usage_page": 65280,' in lines
+
+
 def test_report_without_device_or_log(
     tmp_path: Path, fake_enumeration: list[dict[str, Any]]
 ) -> None:
