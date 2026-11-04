@@ -2,9 +2,9 @@
 
 Device: USB HID LED strip `37FA:8202` (driver `strip_37fa_8202`).
 
-Status: **framing, color frames, the LED-count query and the init sequence documented** from
-captures 00–09 (2026-11-01); nothing reproduced by rimlight yet. Brightness and power have no
-device commands.
+Status: **framing, color frames and the LED-count query confirmed**: derived from captures 00–09
+(2026-11-01) and reproduced by rimlight on the device (`scripts/dev_tools/verify_strip.py`,
+2026-11-04, see Verification). Brightness and power have no device commands.
 
 This file is the single source of truth for how rimlight talks to the strip. Code in
 `src/rimlight/device/` implements only what is written here.
@@ -48,13 +48,13 @@ All captured on Windows 11 with Wireshark + USBPcap (`\\.\USBPcap1`), filtered t
 
 | Property | Value | Source | Confidence |
 |----------|-------|--------|------------|
-| VID:PID | `0x37FA:0x8202`, bcdDevice `0x0105` | 00 frame 2 | likely |
-| Configuration | 1 configuration, 1 interface, bus-powered, remote wakeup, 70 mA | 00 frame 6 | likely |
-| Interface | 0, HID class, no subclass/protocol | 00 frame 6 | likely |
-| Endpoints | interrupt IN `0x82` and OUT `0x02`, 64 bytes, bInterval 1 | 00 frame 6; 09 frames 16, 64 | likely |
-| HID report descriptor | 34 bytes: usage page `0xFF00`, usage `0x01`, one 64-byte Input and one 64-byte Output report, 8-bit fields | 00 frame 12; 09 frames 22, 70 | likely |
-| Report IDs | none | 00 frame 12 | likely |
-| Transfer method | interrupt OUT for host → device, interrupt IN for device → host; no SET_REPORT or feature reports | all captures | likely |
+| VID:PID | `0x37FA:0x8202`, bcdDevice `0x0105` | 00 frame 2 | confirmed |
+| Configuration | 1 configuration, 1 interface, bus-powered, remote wakeup, 70 mA | 00 frame 6 | confirmed |
+| Interface | 0, HID class, no subclass/protocol | 00 frame 6 | confirmed |
+| Endpoints | interrupt IN `0x82` and OUT `0x02`, 64 bytes, bInterval 1 | 00 frame 6; 09 frames 16, 64 | confirmed |
+| HID report descriptor | 34 bytes: usage page `0xFF00`, usage `0x01`, one 64-byte Input and one 64-byte Output report, 8-bit fields | 00 frame 12; 09 frames 22, 70 | confirmed |
+| Report IDs | none | 00 frame 12 | confirmed |
+| Transfer method | interrupt OUT for host → device, interrupt IN for device → host; no SET_REPORT or feature reports | all captures | confirmed |
 
 HID report descriptor (00 frame 12):
 
@@ -93,14 +93,15 @@ leftovers and only zero padding.
 same direction with no header; the last report is zero-padded to 64 bytes
 (02 frames 735, 737, 739: 61 + 64 + 46 payload bytes).
 
-Source: all captures; reassembly checked over every report. Confidence: **likely**.
+Source: all captures; reassembly checked over every report; requests and answers reproduced
+on the device. Confidence: **confirmed**.
 
 ## 3. Commands
 
 | Cmd | Request payload | Response data | Meaning | Source | Confidence |
 |-----|-----------------|---------------|---------|--------|------------|
-| `0x02` | colors, 3 bytes per LED | none (status only) | show a color frame | all captures | likely |
-| `0x03` | none | 1 byte: `0x39` = 57 | number of LEDs the device drives | 00 f41–43, 01 f23–25, 09 f113–115 | likely (value matches the 57 colors per frame) |
+| `0x02` | colors, 3 bytes per LED | none (status only) | show a color frame | all captures; Verification | confirmed |
+| `0x03` | none | 1 byte: `0x39` = 57 | number of LEDs the device drives | 00 f41–43, 01 f23–25, 09 f113–115; Verification | confirmed (the strip's physical ends are LEDs 0 and 56) |
 | `0x06` | none | 1 byte: `0x01` | unknown | 00, 01, 09 | guess |
 | `0x08` | none | 1 byte: `0xff` = 255 | unknown | 00, 01, 09 | guess |
 | `0x0a` | none | 1 byte: `0x15` = 21 | unknown | 00, 01, 09 | guess |
@@ -113,13 +114,14 @@ No other commands appear in any capture.
 
 | Offset (in payload) | Size | Field | Values | Source | Confidence |
 |---------------------|------|-------|--------|--------|------------|
-| 3·i | 1 | **green** of LED i | 0–255 | 02 f735 (`#FF0000` → `0f ff 0f`), 03 f487 (`#00FF00` → `ff 0f 0f`), 04 f343 (`#0000FF` → `0f 0f ff`) | likely |
-| 3·i + 1 | 1 | **red** of LED i | 0–255 | same | likely |
-| 3·i + 2 | 1 | **blue** of LED i | 0–255 | same | likely |
+| 3·i | 1 | **green** of LED i | 0–255 | 02 f735 (`#FF0000` → `0f ff 0f`), 03 f487 (`#00FF00` → `ff 0f 0f`), 04 f343 (`#0000FF` → `0f 0f ff`); Verification | confirmed |
+| 3·i + 1 | 1 | **red** of LED i | 0–255 | same | confirmed |
+| 3·i + 2 | 1 | **blue** of LED i | 0–255 | same | confirmed |
 
 - Channel order is **G, R, B**.
 - Payload length is 3 × LED count (171 for 57 LEDs); it matches the `0x03` response in every
   capture.
+- LED 0 is the strip's physical start and LED count − 1 its physical end (Verification).
 - LED order around the screen (07): with the screen split left/right, LEDs 0–15 and 49–56
   show the right half, 18–46 the left half, 16–17 and 47–48 sit at the vertical center line
   (07 frames 7 and 1287). The strip runs around the screen, starting in the right half;
@@ -127,8 +129,9 @@ No other commands appear in any capture.
 - The device answers each frame with `82 00 01 00` (status 0) about 25 ms later (median over
   02, 07, 01; max 40 ms in steady state).
 - The vendor app sends frames continuously at about 21 per second (median interval 46 ms,
-  02/07/01), also when the colors do not change. Whether the device needs a steady stream
-  (e.g. a timeout) is not known.
+  02/07/01), also when the colors do not change. The device does **not** need this: a single
+  frame stayed on the strip for 15 s, and the device still answered after about 30 s without
+  frames (Verification).
 
 ### Init sequence
 
@@ -137,11 +140,9 @@ answered before the next, then starts frames (01 frames 23–47, 09 frames 113�
 41–65). Identical in all three captures. Confidence: **likely** for the sequence; the meaning
 of `06`–`0c` is a **guess**.
 
-rimlight's driver starts with `0x03` (it needs the LED count) and refuses to send frames of any
-other length, since none have been observed. Whether the device accepts frames
-without the other queries is the first thing to verify on hardware. If it does not, replaying
-`06`–`0c` exactly as observed needs a maintainer decision recorded here first: they look like
-read-only queries, but their meaning is a guess, and guess reports are not sent.
+rimlight's driver sends only `0x03` and then frames, and the device accepts that (Verification),
+so the queries `06`–`0c` are not needed and stay unsent. The driver refuses frames of any other
+length than the reported count, since none have been observed.
 
 ## 4. Brightness
 
@@ -158,8 +159,8 @@ lowest channel value is about `0x0f`, and it fades between colors over several f
 
 There is **no power command**. "Off" in the vendor app is a fade to frames of `0f 0f 0f`
 (06 frames 1153–1169), "on" a fade back (06 frames 2353–2369). rimlight implements power as
-frames (`DeviceCapabilities.hardware_power = False`). Whether `0f 0f 0f` and `00 00 00` look
-different on the strip is not known.
+frames (`DeviceCapabilities.hardware_power = False`). Both `0f 0f 0f` and `00 00 00` look off on
+the strip (Verification), so rimlight uses `00 00 00`. The lowest visible level is not known.
 
 ### Sleep / resume observations
 
@@ -196,12 +197,28 @@ Conclusions for recovery (issue #21, **likely**):
 | `06`, `08`, `0a`, `0b`, `0c` (length 0) | OUT | init only | 00, 01, 09 | read-only queries by their shape; meaning unknown |
 | `00 00 00` (length 0) | IN | once, right after the first port cycle | 09 frame 56 | completed with an error status as the device disappeared |
 
+## Verification
+
+`scripts/dev_tools/verify_strip.py` on the real strip, Windows, vendor app closed, 2026-11-04,
+sending only `0x03` and `0x02`:
+
+| Check | Result |
+|-------|--------|
+| `0x03` | answered 57 |
+| Frames after `0x03` alone | accepted and acknowledged |
+| Pure red, green, blue (RGB input, encoded G, R, B) | shown as requested |
+| LED 0 red, last LED blue | lit the two physical ends of the strip |
+| One lit LED walking from 0 to the last | ran from the physical start to the physical end |
+| `0f 0f 0f` for 3 s, then `00 00 00` for 3 s | no visible light in either |
+| One white frame, then no frames for 15 s | stayed white |
+| Frame after that pause (about 30 s since the white frame) | acknowledged |
+
 ## Open questions
 
-1. Does the device accept frames after `0x03` alone, without `06`–`0c`?
-2. Does it need a continuous frame stream, and what happens if frames stop?
-3. Does `0x03` report the cut length on its own, or was it stored by the vendor app at setup?
-   (Verify by lighting LED 0 and the last LED.)
-4. LED order: direction and start side around the screen (capture with a top/bottom split).
-5. Is `0f 0f 0f` visibly off, or is `00 00 00` needed for a dark strip?
-6. Can a port cycle or device restart be done without administrator rights on Windows?
+1. LED order: direction and start side around the screen (capture with a top/bottom split, or
+   note where the physical start is mounted). rimlight's layout settings make this configurable.
+2. Can a port cycle or device restart be done without administrator rights on Windows?
+3. Does the device report its cut length on its own, or was it stored by the vendor app at setup?
+   Only matters if the strip is cut again.
+4. Is there a time limit beyond the observed 30 s without frames? (Sleep/resume aside.)
+5. What is the lowest visible color level?
