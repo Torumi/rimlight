@@ -140,7 +140,8 @@ def _cmd_run(_args: argparse.Namespace) -> int:
         print(f"Settings: {problem}", file=sys.stderr)
 
     def on_state(state: DeviceState) -> None:
-        print(f"{time.strftime('%H:%M:%S')} {state.name}", flush=True)
+        hint = "  (device not found; still looking)" if state is DeviceState.SEARCHING else ""
+        print(f"{time.strftime('%H:%M:%S')} {state.name}{hint}", flush=True)
 
     def wait() -> None:
         print("Running. Press Ctrl+C to stop.", flush=True)

@@ -1,3 +1,4 @@
+import logging
 import threading
 from typing import Any
 
@@ -125,6 +126,17 @@ def test_absent_device_is_retried_with_growing_delays(world: FakeWorld) -> None:
     assert world.resets == 0  # nothing suggests a hang
     # 1, 2, 5, 10, 30 s, then every 60 s.
     assert world.connects == pytest.approx(6 + 1000 // 60, abs=2)
+
+
+def test_absent_device_at_start_is_reported_once_with_the_reason(
+    world: FakeWorld, caplog: pytest.LogCaptureFixture
+) -> None:
+    world.present = False
+    manager = _manager(world)
+    with caplog.at_level(logging.INFO, logger="rimlight.device.manager"):
+        _run_for(manager, world, 100)
+    assert world.states == [DeviceState.SEARCHING]
+    assert caplog.text.count("no supported device found") == 1
 
 
 def test_device_is_picked_up_when_it_appears_and_gets_the_frame(world: FakeWorld) -> None:
