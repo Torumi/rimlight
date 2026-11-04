@@ -179,6 +179,9 @@ about 35 s, 2026-11-04). The strip answered `0x03` before every sleep:
 Recovery of a silent strip: an elevated `pnputil /restart-device` on the `USB\VID_37FA&PID_8202`
 node made it answer `0x03` at once (one run; frames not checked in that run). A port cycle in
 USB Device Tree Viewer, run as administrator, also brought it back between the runs above.
+A scheduled task running that `pnputil` command as SYSTEM (`scripts/dev_tools/reset_task.ps1`),
+started by a normal user with `schtasks /run`, did the same: task result 0, `0x03` answered at once
+(one run; frames not checked).
 
 Conclusions for recovery (issue #21, **confirmed** on one PC):
 
@@ -186,8 +189,8 @@ Conclusions for recovery (issue #21, **confirmed** on one PC):
   handle, or neither. rimlight cannot prevent this with the commands it knows.
 - A write error is **not** a reliable signal, since writes can still succeed (08). A **missing
   answer** within a timeout is.
-- Reopening the handle does not help. Restarting the device does, which needs administrator rights
-  on Windows.
+- Reopening the handle does not help. Restarting the device does. That needs administrator rights
+  on Windows, but a scheduled task lets a normal user trigger it after one elevated setup.
 - Earlier, outside these captures, the HID node showed Code 28 after resume. Not observed
   in these runs; recorded as a possible second form of the same failure.
 
