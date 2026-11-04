@@ -46,7 +46,8 @@ across `tests/`.
    `initialize` and `_show`, and `set_brightness`, `set_power` or `read_led_count` if the device
    has them. The engine emulates what `capabilities` says is missing.
 5. **Signal a dead device**: raise `DeviceNotRespondingError` if the device stops answering and
-   `TransportError` on I/O failures. Recovery relies on these, not on details of your device.
+   `TransportError` on I/O failures or unexpected answers. `DeviceManager` handles only these, so
+   a driver's own exceptions must not escape it.
 6. **Register** the driver in `BUILTIN_DRIVERS` in `drivers/__init__.py`.
 7. **Linux**: add the device to `packaging/linux/99-rimlight.rules`.
 8. **Verify on hardware**: a `@pytest.mark.hardware` test, or a script like

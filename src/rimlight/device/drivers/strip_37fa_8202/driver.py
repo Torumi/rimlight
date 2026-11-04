@@ -22,7 +22,7 @@ from rimlight.device.drivers.strip_37fa_8202.protocol import (
     encode_frame,
     encode_led_count_query,
 )
-from rimlight.device.transport import DeviceNotRespondingError
+from rimlight.device.transport import DeviceNotRespondingError, TransportError
 
 _log = logging.getLogger(__name__)
 
@@ -50,13 +50,16 @@ class Strip37FA8202Driver(DeviceDriver):
         """Query the LED count; frames of any other length have never been observed."""
         count = self.read_led_count()
         if count != self.led_count:
-            raise ProtocolError(
+            raise TransportError(
                 f"device reports {count} LEDs but the driver was set up for {self.led_count}; "
                 "frames of a different length are not documented in its spec"
             )
 
     def read_led_count(self) -> int:
-        return decode_led_count(self._request(encode_led_count_query(), COMMAND_LED_COUNT))
+        try:
+            return decode_led_count(self._request(encode_led_count_query(), COMMAND_LED_COUNT))
+        except ProtocolError as exc:
+            raise TransportError(str(exc)) from exc
 
     def _show(self, colors: LedColors) -> None:
         self._request(encode_frame(colors), COMMAND_FRAME)
@@ -64,7 +67,10 @@ class Strip37FA8202Driver(DeviceDriver):
     def _request(self, reports: list[bytes], command: int) -> Response:
         for report in reports:
             self.transport.write(_NO_REPORT_ID + report)
-        return self._await_response(command)
+        try:
+            return self._await_response(command)
+        except ProtocolError as exc:
+            raise TransportError(str(exc)) from exc
 
     def _await_response(self, command: int) -> Response:
         """Wait for the answer to `command`, skipping stale answers to earlier requests."""
