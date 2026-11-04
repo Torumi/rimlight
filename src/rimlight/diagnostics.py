@@ -13,7 +13,7 @@ from typing import Final
 
 from rimlight import __version__
 from rimlight.device.registry import SupportedDevice, default_registry
-from rimlight.logs import default_log_path
+from rimlight.logs import latest_log
 
 _REPORT_LOG_LINES: Final = 200
 
@@ -45,7 +45,9 @@ def _scrub(text: str) -> str:
     return text.replace(str(Path.home()), "~")
 
 
-def _recent_log(path: Path, lines: int) -> str:
+def _recent_log(path: Path | None, lines: int) -> str:
+    if path is None:
+        return "(no log file)"
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -65,7 +67,7 @@ def _devices_section() -> list[str]:
 
 def collect_report(log_path: Path | None = None) -> str:
     """A text report for bug reports. Read-only: no device is opened."""
-    log_path = log_path or default_log_path()
+    log_path = log_path or latest_log()
     frozen = bool(getattr(sys, "frozen", False))
     lines = [
         f"rimlight {__version__}{' (frozen build)' if frozen else ''}",

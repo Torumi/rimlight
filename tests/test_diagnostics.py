@@ -8,7 +8,7 @@ from conftest import hid_entry
 
 from rimlight.cli import main
 from rimlight.diagnostics import collect_report, mask_identifier
-from rimlight.logs import LOG_FILE_NAME, setup_logging, stop_logging
+from rimlight.logs import setup_logging, stop_logging
 
 SERIAL = "SN0000000042"
 MANUFACTURER = "MFR00000000099"
@@ -16,9 +16,7 @@ MANUFACTURER = "MFR00000000099"
 
 @pytest.fixture
 def log_path(tmp_path: Path) -> Iterator[Path]:
-    path = tmp_path / "logs" / LOG_FILE_NAME
-    setup_logging(path)
-    yield path
+    yield setup_logging(tmp_path / "logs")
     stop_logging()
 
 

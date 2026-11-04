@@ -76,7 +76,7 @@ src/rimlight/
   engine/       # frame loop: capture -> mapping -> processing -> device; modes (mirror, static, effect)
   config/       # settings model + TOML persistence (platformdirs)
   ui/           # PySide6 window, tray, zone editor, live preview
-  logs.py       # logging setup: rotating log file, uncaught exceptions
+  logs.py       # logging setup: one file per session in logs/, uncaught exceptions
   diagnostics.py # bug report text (identifiers masked)
   cli.py        # debug CLI: list devices, diagnostics, set color, run mirror headless, dump reports
 ```
