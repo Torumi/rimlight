@@ -4,7 +4,8 @@ from typing import Any
 import pytest
 from conftest import hid_entry
 
-from rimlight.cli import main, mask_identifier
+from rimlight.cli import main
+from rimlight.diagnostics import mask_identifier
 
 
 def test_list_prints_table(

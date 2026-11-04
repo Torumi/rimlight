@@ -60,4 +60,5 @@ body:
     id: logs
     attributes:
       label: Logs or other details
+      description: The output of `rimlight-cli diagnostics` helps most; serial numbers and your home folder are masked.
       render: text

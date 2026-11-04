@@ -74,6 +74,7 @@ jobs:
         run: |
           cli="out/$PKG/rimlight-cli/rimlight-cli"
           "$cli" --version
+          "$cli" diagnostics
           set +e
           output="$("$cli" list --all --json)"
           status=$?

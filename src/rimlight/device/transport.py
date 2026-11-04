@@ -1,5 +1,6 @@
 """Transport abstraction and the HID transport. Tests use `drivers.fake.FakeTransport`."""
 
+import logging
 from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import TYPE_CHECKING, Self
@@ -8,6 +9,9 @@ from rimlight.device.discovery import HidDeviceInfo
 
 if TYPE_CHECKING:
     import hid
+
+
+_log = logging.getLogger(__name__)
 
 
 class TransportError(OSError):
@@ -71,13 +75,16 @@ class HidTransport(Transport):
         try:
             device.open_path(self.info.path)
         except OSError as exc:
+            _log.warning("cannot open %s: %s", self._name, exc)
             raise TransportError(f"cannot open {self.info.path!r}: {exc}") from exc
         self._device = device
+        _log.info("opened %s", self._name)
 
     def close(self) -> None:
         device, self._device = self._device, None
         if device is not None:
             device.close()
+            _log.info("closed %s", self._name)
 
     @property
     def is_open(self) -> bool:
@@ -88,8 +95,10 @@ class HidTransport(Transport):
         try:
             written = device.write(report)
         except (OSError, ValueError) as exc:
+            _log.warning("write to %s failed: %s", self._name, exc)
             raise TransportError(f"write failed: {exc}") from exc
         if written < 0:
+            _log.warning("write to %s failed", self._name)
             raise TransportError("write failed")
         return written
 
@@ -99,7 +108,14 @@ class HidTransport(Transport):
             # hidapi treats a timeout of 0 as "block forever", ours means "do not wait long".
             return bytes(device.read(size, max(1, timeout_ms)))
         except (OSError, ValueError) as exc:
+            _log.warning("read from %s failed: %s", self._name, exc)
             raise TransportError(f"read failed: {exc}") from exc
+
+    @property
+    def _name(self) -> str:
+        """For logs: identifies the interface without unit-specific identifiers."""
+        info = self.info
+        return f"{info.vendor_id:04x}:{info.product_id:04x} interface {info.interface_number}"
 
     def _require_device(self) -> "hid.device":
         if self._device is None:
