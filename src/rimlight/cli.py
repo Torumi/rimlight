@@ -52,6 +52,51 @@ def _cmd_diagnostics(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_recovery(args: argparse.Namespace) -> int:
+    from rimlight.config.settings import RecoverySettings, load, save
+    from rimlight.device.reset import create_resetter
+
+    # Loading settings pulls in pydantic, so only commands that need them import it.
+    settings = load().settings
+    resetter = create_resetter(default_registry().drivers[0].match)
+    if resetter is None:
+        print("Automatic device restart is not available on this system yet.", file=sys.stderr)
+        return 1
+
+    def set_auto_reset(enabled: bool) -> None:
+        recovery = RecoverySettings(auto_reset=enabled)
+        save(settings.model_copy(update={"recovery": recovery}))
+
+    try:
+        match args.action:
+            case "enable":
+                if not resetter.is_installed():
+                    print(
+                        "Windows will now ask for permission for PowerShell: it registers a task "
+                        "that restarts the device. This is asked only once."
+                    )
+                    resetter.install()
+                set_auto_reset(True)
+                print("Automatic restart is on.")
+            case "disable":
+                set_auto_reset(False)
+                print("Automatic restart is off. The task stays installed; `remove` removes it.")
+            case "remove":
+                if resetter.is_installed():
+                    print("Windows will now ask for permission for PowerShell to remove the task.")
+                    resetter.uninstall()
+                set_auto_reset(False)
+                print("Automatic restart is off and the task is removed.")
+            case _:
+                state = "on" if settings.recovery.auto_reset else "off"
+                task = "installed" if resetter.is_installed() else "not installed"
+                print(f"Automatic restart: {state}; restart task: {task}.")
+    except OSError as exc:
+        print(f"Failed: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rimlight-cli", description=__doc__)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -73,6 +118,15 @@ def build_parser() -> argparse.ArgumentParser:
         "diagnostics", help="print a report for bug reports (identifiers masked, read-only)"
     )
     p_diagnostics.set_defaults(func=_cmd_diagnostics)
+
+    p_recovery = sub.add_parser("recovery", help="automatic restart of a hung device")
+    p_recovery.add_argument(
+        "action",
+        choices=("status", "enable", "disable", "remove"),
+        help="enable may ask for administrator rights once; disable keeps the task; "
+        "remove deletes it",
+    )
+    p_recovery.set_defaults(func=_cmd_recovery)
     return parser
 
 

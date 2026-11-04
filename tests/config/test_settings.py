@@ -7,6 +7,7 @@ from rimlight.config.settings import (
     FILE_NAME,
     DeviceSettings,
     LightSettings,
+    RecoverySettings,
     Settings,
     default_path,
     load,
@@ -18,6 +19,7 @@ from rimlight.config.settings import (
 NON_DEFAULT = Settings(
     device=DeviceSettings(led_count=57, max_fps=30),
     light=LightSettings(color=(1, 128, 255), brightness=0.25, on=False),
+    recovery=RecoverySettings(auto_reset=False),
 )
 
 

@@ -17,6 +17,7 @@ CORE_MODULES = [
     "rimlight.device.drivers",
     "rimlight.device.rate_limit",
     "rimlight.device.registry",
+    "rimlight.device.reset",
     "rimlight.device.drivers.fake",
     "rimlight.device.drivers.strip_37fa_8202",
     "rimlight.capture.base",
