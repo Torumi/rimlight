@@ -4,11 +4,10 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
-from dataclasses import asdict
 
 from rimlight import __version__
-from rimlight.device.discovery import HidDeviceInfo
 from rimlight.device.registry import SupportedDevice, default_registry
+from rimlight.diagnostics import collect_report, device_entry
 
 
 def _table_row(device: SupportedDevice) -> tuple[str, ...]:
@@ -33,33 +32,11 @@ def _format_table(devices: Sequence[SupportedDevice]) -> str:
     return "\n".join([header, *lines])
 
 
-def mask_identifier(value: str, visible: int = 2) -> str:
-    """Hide all but the last `visible` characters, e.g. "SN0000000042" -> "**********42"."""
-    if len(value) <= visible:
-        return "*" * len(value)
-    return "*" * (len(value) - visible) + value[-visible:]
-
-
-def _json_entry(supported: SupportedDevice, show_serial: bool) -> dict[str, object]:
-    device: HidDeviceInfo = supported.info
-    entry: dict[str, object] = {
-        "driver": supported.driver.id,
-        **asdict(device),
-        "path": device.path.decode(errors="replace"),
-    }
-    if not show_serial:
-        # Output gets pasted into public issues. The strip reports a unit-specific value in
-        # its manufacturer string as well as in the serial number, so both are masked.
-        entry["serial_number"] = mask_identifier(device.serial_number)
-        entry["manufacturer_string"] = mask_identifier(device.manufacturer_string)
-    return entry
-
-
 def _cmd_list(args: argparse.Namespace) -> int:
     registry = default_registry()
     devices = registry.find_supported(any_interface=args.all)
     if args.json:
-        payload = [_json_entry(d, args.show_serial) for d in devices]
+        payload = [device_entry(d, show_serial=args.show_serial) for d in devices]
         print(json.dumps(payload, indent=2))
     elif devices:
         print(_format_table(devices))
@@ -67,6 +44,11 @@ def _cmd_list(args: argparse.Namespace) -> int:
         ids = ", ".join(d.id for d in registry.drivers)
         print(f"No supported devices found (drivers: {ids}).", file=sys.stderr)
         return 1
+    return 0
+
+
+def _cmd_diagnostics(_args: argparse.Namespace) -> int:
+    print(collect_report())
     return 0
 
 
@@ -86,6 +68,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="print serial and manufacturer strings unmasked (not for public issues)",
     )
     p_list.set_defaults(func=_cmd_list)
+
+    p_diagnostics = sub.add_parser(
+        "diagnostics", help="print a report for bug reports (identifiers masked, read-only)"
+    )
+    p_diagnostics.set_defaults(func=_cmd_diagnostics)
     return parser
 
 

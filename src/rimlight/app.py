@@ -8,6 +8,8 @@ import sys
 
 
 def main() -> int:
+    from rimlight.diagnostics import setup_logging
     from rimlight.ui.main_window import run
 
+    setup_logging()
     return run(sys.argv)

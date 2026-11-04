@@ -5,6 +5,7 @@ answer is the health signal: after sleep/resume the device can keep accepting wr
 processing them, so a missing answer raises `DeviceNotRespondingError` (spec, Sleep / resume).
 """
 
+import logging
 import time
 from typing import Final
 
@@ -22,6 +23,8 @@ from rimlight.device.drivers.strip_37fa_8202.protocol import (
     encode_led_count_query,
 )
 from rimlight.device.transport import DeviceNotRespondingError
+
+_log = logging.getLogger(__name__)
 
 VENDOR_ID: Final = 0x37FA
 PRODUCT_ID: Final = 0x8202
@@ -76,4 +79,5 @@ class Strip37FA8202Driver(DeviceDriver):
             if response.status != STATUS_OK:
                 raise ProtocolError(f"command 0x{command:02x} failed: {response}")
             return response
+        _log.warning("no answer to command 0x%02x within %d ms", command, RESPONSE_TIMEOUT_MS)
         raise DeviceNotRespondingError(f"no answer to command 0x{command:02x}")

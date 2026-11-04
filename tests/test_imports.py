@@ -7,6 +7,7 @@ import pytest
 CORE_MODULES = [
     "rimlight",
     "rimlight.cli",
+    "rimlight.diagnostics",
     "rimlight.app",
     "rimlight.device.discovery",
     "rimlight.device.transport",

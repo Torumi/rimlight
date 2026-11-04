@@ -76,7 +76,8 @@ src/rimlight/
   engine/       # frame loop: capture -> mapping -> processing -> device; modes (mirror, static, effect)
   config/       # settings model + TOML persistence (platformdirs)
   ui/           # PySide6 window, tray, zone editor, live preview
-  cli.py        # debug CLI: list devices, set color, run mirror headless, dump reports
+  diagnostics.py # rotating log file, bug report text (identifiers masked)
+  cli.py        # debug CLI: list devices, diagnostics, set color, run mirror headless, dump reports
 ```
 
 Rules:
@@ -91,6 +92,8 @@ Rules:
 - Core packages never import PySide6. UI talks to the engine via signals/a thin facade.
 - Platform-specific modules are imported lazily behind a factory; the other OS's code must
   import-safely skip in CI.
+- Logs and diagnostics may be pasted into public issues: never log serial numbers or other
+  unit identifiers, and log device, power and recovery events with `logging.getLogger(__name__)`.
 - Resume recovery: on resume or write error → close handle, wait for re-enumeration,
   reopen with backoff, re-send init sequence. Never block the UI thread.
 
