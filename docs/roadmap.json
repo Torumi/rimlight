@@ -52,7 +52,7 @@
       "id": "A7", "moscow": "Must", "milestone": "0.1",
       "title": "Rate-limit writes to the strip",
       "labels": ["area: device"],
-      "summary": "Never write faster than a configurable cap (default 60 fps), dropping or merging excess frames.",
+      "summary": "Never write faster than a configurable cap (default 60 fps), by pacing frames so the last one always arrives.",
       "done_when": [
         "Limiter is unit-tested with a fake clock against FakeTransport",
         "The cap is a setting with a safe default"

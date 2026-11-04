@@ -1,6 +1,7 @@
 """In-memory driver for tests of everything above the device layer."""
 
 from rimlight.device.driver import DeviceCapabilities, DeviceDriver, DeviceMatch, LedColors
+from rimlight.device.rate_limit import RateLimiter
 from rimlight.device.transport import Transport
 
 
@@ -22,8 +23,10 @@ class FakeDriver(DeviceDriver):
         max_led_count=300,
     )
 
-    def __init__(self, transport: Transport, led_count: int) -> None:
-        super().__init__(transport, led_count)
+    def __init__(
+        self, transport: Transport, led_count: int, *, rate_limiter: RateLimiter | None = None
+    ) -> None:
+        super().__init__(transport, led_count, rate_limiter=rate_limiter)
         self.initialized = 0
         self.frames: list[LedColors] = []
         self.brightness: list[float] = []
