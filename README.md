@@ -1,19 +1,21 @@
 # rimlight
 
-Open-source desktop app for USB monitor-backlight LED strips: screen mirroring, static colors
-and effects, and reliable recovery after sleep/resume. Windows 10/11 and Linux (Wayland and X11).
+Open-source desktop app for USB monitor-backlight LED strips: static colors and reliable
+recovery after sleep/resume today, screen mirroring and effects later. Windows 10/11 first, then
+Linux (Wayland and X11).
 
 Compatible with the Nanoleaf PC Screen Mirror Lightstrip (USB HID, `37FA:8202`).
 
-> **Status: pre-alpha.** The device protocol is not documented yet, so rimlight cannot
-> control the strip. What works today: `rimlight-cli list`, which finds the strip's HID
-> interfaces without sending anything to it.
+> **Status: alpha, Windows only, command line only.** rimlight holds a static color and
+> brightness, and brings the strip back after sleep and after replugging. So far this has been
+> tested on one PC. There is no tray icon, autostart or screen mirroring yet, and on Linux nothing
+> beyond `rimlight-cli list` has been tested.
 
 ## Why
 
 The vendor app loses the strip after the PC wakes from sleep (on Windows the HID node shows
-Code 28 until the device is restarted). rimlight aims to drive the strip directly and recover
-by itself after resume.
+Code 28 until the device is restarted). rimlight drives the strip directly and recovers by
+itself after resume.
 
 ## Clean-room disclaimer
 
@@ -31,7 +33,7 @@ used only to describe compatibility.
 Requires [uv](https://docs.astral.sh/uv/).
 
 ```
-git clone <repo-url> rimlight
+git clone https://github.com/Torumi/rimlight.git
 cd rimlight
 uv sync
 uv run rimlight-cli list
@@ -51,15 +53,43 @@ Then unplug and replug the strip.
 
 ## Usage
 
+Close the vendor app first, so that only one program talks to the strip.
+
+```
+uv run rimlight-cli set --color "#ff8800" --brightness 50   # save the light
+uv run rimlight-cli set --off                               # or --on; the color is kept
+uv run rimlight-cli run                                     # show it and keep it up (Ctrl+C stops)
+```
+
+`set` only saves the settings: a running `run` picks them up when it is restarted.
+
+Other commands:
+
 ```
 uv run rimlight-cli list          # HID interfaces with the vendor usage page (0xFF00)
 uv run rimlight-cli list --all    # every interface of the strip
 uv run rimlight-cli list --json
-uv run rimlight-cli set --color "#ff8800" --brightness 50
-uv run rimlight-cli run           # hold that light, recover after sleep (Ctrl+C stops)
-uv run rimlight-cli recovery enable   # let it restart a hung or replugged strip; asks for admin rights once
+uv run rimlight-cli diagnostics   # report for bug reports, with identifiers masked
 uv run rimlight                   # GUI (placeholder for now)
 ```
+
+### Automatic restart (Windows)
+
+After sleep the strip stops answering, and after replugging it can come up in its bootloader
+(USB ID `4348:55E0`, Code 28). Only restarting the device brings it back, and that needs
+administrator rights, so rimlight can set up a scheduled task once and then start it as a normal
+user:
+
+```
+uv run rimlight-cli recovery enable    # asks for administrator rights once
+uv run rimlight-cli recovery status
+uv run rimlight-cli recovery disable   # turn it off, keep the task
+uv run rimlight-cli recovery remove    # turn it off, remove the task
+```
+
+The task runs as SYSTEM and only restarts the USB devices with the strip's two IDs. rimlight
+never writes to the bootloader. Its ID looks like the chip maker's, so while the strip is missing,
+another device with that ID would be restarted too.
 
 ## Development
 
