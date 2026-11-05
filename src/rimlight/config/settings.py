@@ -51,8 +51,6 @@ class _Model(BaseModel):
 
 
 class DeviceSettings(_Model):
-    led_count: int | None = Field(default=None, ge=1)
-    """LEDs on the strip; None uses the count the device reports."""
     max_fps: int = Field(default=DEFAULT_MAX_FPS, ge=1, le=MAX_ALLOWED_FPS)
 
 

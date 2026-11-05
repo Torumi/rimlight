@@ -36,7 +36,7 @@ Scope and priorities: `docs/roadmap.md` (MoSCoW for 1.0, milestones 0.1–1.0). 
 ## Hardware safety
 
 - Device: USB HID, `VID 0x37FA`, `PID 0x8202`, vendor usage page `0xFF00`, usage `0x01`.
-- Strip ships with 75 LEDs but can be cut; LED count is a user setting, never hard-coded.
+- Strip ships with 75 LEDs but can be cut; the LED count comes from the device, never hard-coded.
 - **Only send report types documented in the device's spec.** No fuzzing, no probing of
   unknown command bytes, no "let's see what this does". Unknown/unsure → ask the user.
 - Rate-limit writes (default cap 60 fps). Always close the device handle cleanly.

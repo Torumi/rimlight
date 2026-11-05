@@ -17,7 +17,7 @@ from rimlight.config.settings import (
 
 # Differs from the defaults in every field, so a field that is not saved or read back shows up.
 NON_DEFAULT = Settings(
-    device=DeviceSettings(led_count=57, max_fps=30),
+    device=DeviceSettings(max_fps=30),
     light=LightSettings(color=(1, 128, 255), brightness=0.25, on=False),
     recovery=RecoverySettings(auto_reset=False),
 )
@@ -63,7 +63,6 @@ def test_saved_file_is_readable_toml(path: Path) -> None:
     save(Settings(light=LightSettings(color=(255, 136, 0))), path)
     text = path.read_text(encoding="utf-8")
     assert '[light]\ncolor = "#ff8800"' in text
-    assert "led_count" not in text  # None means "ask the device"
     assert [p.name for p in path.parent.iterdir()] == [FILE_NAME]  # no temporary left
 
 
@@ -76,9 +75,6 @@ def test_partial_file_keeps_other_defaults() -> None:
 @pytest.mark.parametrize(
     ("section", "key", "value"),
     [
-        ("device", "led_count", 0),
-        ("device", "led_count", "75"),
-        ("device", "led_count", True),
         ("device", "max_fps", 61),
         ("device", "max_fps", 0),
         ("light", "color", "red"),
@@ -100,12 +96,17 @@ def test_invalid_values_are_reported_and_defaulted(section: str, key: str, value
 
 def test_bad_values_do_not_lose_the_others() -> None:
     result = parse(
-        {"device": {"led_count": -1, "max_fps": 30}, "light": {"on": "no", "brightness": 0.5}}
+        {"device": {"max_fps": -1}, "light": {"on": "no", "brightness": 0.5}, "recovery": {}}
     )
-    assert result.settings == Settings(
-        device=DeviceSettings(max_fps=30), light=LightSettings(brightness=0.5)
-    )
+    assert result.settings == Settings(light=LightSettings(brightness=0.5))
     assert len(result.problems) == 2
+
+
+def test_file_with_the_removed_led_count_still_loads() -> None:
+    """Earlier versions had this setting; the device reports the count now."""
+    result = parse({"device": {"led_count": 57, "max_fps": 30}})
+    assert result.settings == Settings(device=DeviceSettings(max_fps=30))
+    assert result.problems == ("unknown setting device.led_count",)
 
 
 def test_unknown_keys_and_sections_are_reported() -> None:

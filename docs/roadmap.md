@@ -47,7 +47,6 @@ builds.
 | A10 | Turn the strip off on sleep, shutdown and exit (Windows) | Should | 0.1 | |
 | A10L | Turn the strip off on suspend, shutdown and exit (Linux) | Should | 0.3 | |
 | A11 | React to screen lock | Could | | |
-| A12 | LED count setting | Must | 0.1 | project rule; fallback for A15 |
 | A13 | Drive several strips at once | Could | | |
 | A14 | Show the firmware version | Could | | only if the protocol reports it |
 | A15 | Detect the LED count automatically | Should | 0.1 | only if the protocol allows it; otherwise C2 helps |
@@ -121,6 +120,7 @@ builds.
 
 | ID | Item | Why |
 |----|------|-----|
+| A12 | LED count setting | The strip reports its count (A15), and frames of another length are not documented, so a setting could only break the connection. A device that does not report it would bring this back |
 | E3 | Music-reactive mode | A separate audio-capture subsystem on two operating systems |
 | H6 | Code-signed Windows builds | Needs a paid certificate; SmartScreen warnings are documented instead |
 | A16c | Devices from other vendors | The driver architecture (A16a) allows it, but the scope stays on one device family until 1.0 |

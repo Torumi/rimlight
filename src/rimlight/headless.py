@@ -73,10 +73,7 @@ def run_with_defaults(
     on_state: Callable[[DeviceState], None] | None = None,
 ) -> None:
     """`run` with the real device and power events."""
-    device = settings.device
-    connect = partial(
-        open_first_device, registry, led_count=device.led_count, max_fps=device.max_fps
-    )
+    connect = partial(open_first_device, registry, max_fps=settings.device.max_fps)
     _log.info("automatic device restart: %s", "on" if resetter else "off")
     run(
         settings,

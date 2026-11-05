@@ -76,10 +76,8 @@ type Connector = Callable[[], Connection]
 """Opens and initializes a device. Raises TransportError if there is none or it does not answer."""
 
 
-def open_first_device(
-    registry: DriverRegistry, *, led_count: int | None = None, max_fps: int | None = None
-) -> Connection:
-    """Connect to the first supported device. `led_count=None` uses what the device reports."""
+def open_first_device(registry: DriverRegistry, *, max_fps: int | None = None) -> Connection:
+    """Connect to the first supported device, with the LED count it reports."""
     found = registry.find_supported()
     if not found:
         in_bootloader = registry.in_bootloader()
@@ -94,9 +92,7 @@ def open_first_device(
     transport = HidTransport(device.info)
     transport.open()
     try:
-        count = led_count
-        if count is None:
-            count = _reported_led_count(device.driver, transport)
+        count = _reported_led_count(device.driver, transport)
         driver = device.driver(transport, count, rate_limiter=limiter)
         driver.initialize()
     except TransportError:
