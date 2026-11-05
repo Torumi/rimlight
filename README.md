@@ -55,6 +55,9 @@ Then unplug and replug the strip.
 uv run rimlight-cli list          # HID interfaces with the vendor usage page (0xFF00)
 uv run rimlight-cli list --all    # every interface of the strip
 uv run rimlight-cli list --json
+uv run rimlight-cli set --color "#ff8800" --brightness 50
+uv run rimlight-cli run           # hold that light, recover after sleep (Ctrl+C stops)
+uv run rimlight-cli recovery enable   # let it restart a hung strip; asks for admin rights once
 uv run rimlight                   # GUI (placeholder for now)
 ```
 

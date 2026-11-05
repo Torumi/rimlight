@@ -114,6 +114,8 @@ class DeviceManager:
         self._on_state = on_state
         self._clock = clock
         self._state = DeviceState.SEARCHING
+        self._state_reported = False
+        self._last_failure = ""
 
         self._lock = threading.Lock()
         self._wake = threading.Event()
@@ -244,7 +246,9 @@ class DeviceManager:
         try:
             self._connection = self._connect()
         except TransportError as exc:
-            _log.debug("connect failed: %s", exc)
+            if str(exc) != self._last_failure:  # retries go on for hours
+                self._last_failure = str(exc)
+                _log.info("device not available: %s", exc)
             self._note_failure(now, exc)
             self._maybe_reset(now)
             delay = RECONNECT_DELAYS_S[self._delay_index]
@@ -253,6 +257,7 @@ class DeviceManager:
             self._update_lost_state()
             return delay
         _log.info("device connected, %d LEDs", self._connection.driver.led_count)
+        self._last_failure = ""
         self._delay_index = 0
         self._may_be_hung = False
         self._failing_since = None
@@ -288,9 +293,10 @@ class DeviceManager:
                 _log.warning("closing the device failed: %s", exc)
 
     def _set_state(self, state: DeviceState) -> None:
-        if state is self._state:
+        if state is self._state and self._state_reported:
             return
         self._state = state
+        self._state_reported = True
         _log.info("device state: %s", state.name)
         if self._on_state is not None:
             self._on_state(state)

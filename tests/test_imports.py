@@ -27,6 +27,8 @@ CORE_MODULES = [
     "rimlight.power.events",
     "rimlight.power.factory",
     "rimlight.engine",
+    "rimlight.engine.static",
+    "rimlight.headless",
     "rimlight.config",
     "rimlight.config.settings",
     "rimlight.ui",
