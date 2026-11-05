@@ -12,7 +12,8 @@ import sys
 from collections.abc import Callable, Sequence
 from typing import Final
 
-from rimlight.device.driver import DeviceMatch
+from rimlight.device.driver import DeviceDriver, DeviceMatch
+from rimlight.device.usb_nodes import UsbId
 
 _log = logging.getLogger(__name__)
 
@@ -39,21 +40,24 @@ def task_name(match: DeviceMatch) -> str:
     return f"rimlight-restart-{match.vendor_id:04x}-{match.product_id:04x}"
 
 
-def restart_command(match: DeviceMatch) -> str:
-    """PowerShell restarting the device's USB node. The IDs are integers, so nothing is injected."""
-    node = f"^USB\\\\VID_{match.vendor_id:04X}&PID_{match.product_id:04X}\\\\"
+def restart_command(match: DeviceMatch, bootloader: UsbId | None = None) -> str:
+    """PowerShell restarting the device's USB nodes. IDs are integers, so nothing is injected."""
+    ids = [UsbId(match.vendor_id, match.product_id)]
+    if bootloader is not None:
+        ids.append(bootloader)
+    nodes = "|".join(f"VID_{i.vendor_id:04X}&PID_{i.product_id:04X}" for i in ids)
     return (
-        f"Get-PnpDevice | Where-Object InstanceId -Match '{node}' | "
+        f"Get-PnpDevice | Where-Object InstanceId -Match '^USB\\\\({nodes})\\\\' | "
         "ForEach-Object { pnputil /restart-device $_.InstanceId }"
     )
 
 
-def install_script(match: DeviceMatch) -> str:
+def install_script(match: DeviceMatch, bootloader: UsbId | None = None) -> str:
     """PowerShell, run elevated, registering the task and letting users start it."""
     name = task_name(match)
     # The task's command line is quoted with double quotes; it contains none itself. It sits in
     # a single-quoted PowerShell string here, where a single quote is written twice.
-    command = restart_command(match).replace("'", "''")
+    command = restart_command(match, bootloader).replace("'", "''")
     return f"""$ErrorActionPreference = "Stop"
 $Shell = Join-Path $env:SystemRoot "System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 $Arguments = '-NoProfile -NonInteractive -Command "{command}"'
@@ -92,8 +96,15 @@ def elevated_command(script: str) -> list[str]:
 class ScheduledTaskResetter:
     """Restarts the device through its scheduled task. Needs no elevation once installed."""
 
-    def __init__(self, match: DeviceMatch, *, run: CommandRunner = _run_hidden) -> None:
+    def __init__(
+        self,
+        match: DeviceMatch,
+        *,
+        bootloader: UsbId | None = None,
+        run: CommandRunner = _run_hidden,
+    ) -> None:
         self._match = match
+        self._bootloader = bootloader
         self._name = task_name(match)
         self._run = run
 
@@ -108,7 +119,7 @@ class ScheduledTaskResetter:
 
     def install(self) -> None:
         """Asks for elevation once. Raises OSError if refused or failed."""
-        self._run_elevated(install_script(self._match), "install")
+        self._run_elevated(install_script(self._match, self._bootloader), "install")
 
     def uninstall(self) -> None:
         """Asks for elevation once. Raises OSError if refused or failed."""
@@ -120,8 +131,8 @@ class ScheduledTaskResetter:
             raise OSError(f"could not {action} the restart task (exit code {code})")
 
 
-def create_resetter(match: DeviceMatch) -> ScheduledTaskResetter | None:
+def create_resetter(driver: type[DeviceDriver]) -> ScheduledTaskResetter | None:
     """The platform's way to restart a device, or None where there is none yet."""
     if sys.platform == "win32":
-        return ScheduledTaskResetter(match)
+        return ScheduledTaskResetter(driver.match, bootloader=driver.bootloader)
     return None

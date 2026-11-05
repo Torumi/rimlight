@@ -21,6 +21,7 @@ from rimlight.device.driver import DeviceDriver, LedColors
 from rimlight.device.rate_limit import RateLimiter
 from rimlight.device.registry import DriverRegistry
 from rimlight.device.transport import (
+    DeviceInBootloaderError,
     DeviceNotRespondingError,
     HidTransport,
     Transport,
@@ -35,7 +36,15 @@ RESUME_SETTLE_S: Final = 2.0
 RECONNECT_DELAYS_S: Final[Sequence[float]] = (1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
 # Try plain reconnects for this long before restarting the device.
 RESET_AFTER_S: Final = 10.0
+# Limits restarts that do not help during one failure. Waking up starts a new one.
 RESET_MIN_INTERVAL_S: Final = 300.0
+# A device in its bootloader stays there until restarted, so there is nothing to wait for. The
+# ID is the chip maker's, though: if restarts do not help, it may be another device being
+# flashed on purpose, so after a few of them this falls back to RESET_MIN_INTERVAL_S.
+# A restart took up to 8 s on the strip and sometimes had no effect right after a replug.
+BOOTLOADER_RESET_INTERVAL_S: Final = 12.0
+BOOTLOADER_POLL_S: Final = 2.0
+BOOTLOADER_QUICK_RESETS: Final = 3
 
 type FrameRenderer = Callable[[int], LedColors]
 """Colors for a given LED count; the count is unknown until the device is connected."""
@@ -47,6 +56,8 @@ class DeviceState(Enum):
     CONNECTED = auto()
     NOT_RESPONDING = auto()
     """The device was lost in a way that looks like a hang rather than an unplug."""
+    IN_BOOTLOADER = auto()
+    """The device came up in its bootloader and does not work until it is restarted."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +82,12 @@ def open_first_device(
     """Connect to the first supported device. `led_count=None` uses what the device reports."""
     found = registry.find_supported()
     if not found:
+        in_bootloader = registry.in_bootloader()
+        if in_bootloader is not None:
+            raise DeviceInBootloaderError(
+                f"no supported device found, but {in_bootloader.bootloader} is present: "
+                f"{in_bootloader.id} is in its bootloader"
+            )
         raise TransportError("no supported device found")
     device = found[0]
     limiter = RateLimiter(max_fps) if max_fps is not None else None
@@ -133,6 +150,8 @@ class DeviceManager:
         self._may_be_hung = False
         self._failing_since: float | None = None
         self._last_reset: float | None = None
+        self._last_bootloader_reset: float | None = None
+        self._bootloader_resets = 0
 
     @property
     def state(self) -> DeviceState:
@@ -192,6 +211,9 @@ class DeviceManager:
             self._failing_since = self._failing_since or now
             self._next_health_check = now + RESUME_SETTLE_S
             self._next_attempt = min(self._next_attempt, now + RESUME_SETTLE_S)
+            self._last_reset = None
+            self._last_bootloader_reset = None
+            self._bootloader_resets = 0
         if self._connection is None:
             return self._step_disconnected(now)
         return self._step_connected(now, pending)
@@ -227,7 +249,7 @@ class DeviceManager:
         self._note_failure(now, exc)
         self._next_attempt = now
         self._delay_index = 0
-        self._update_lost_state()
+        self._update_lost_state(exc)
 
     def _note_failure(self, now: float, exc: TransportError) -> None:
         """A silent device looks hung; an I/O error alone looks like an unplug."""
@@ -236,9 +258,13 @@ class DeviceManager:
         if self._may_be_hung:
             self._failing_since = self._failing_since or now
 
-    def _update_lost_state(self) -> None:
-        hung = self._may_be_hung
-        self._set_state(DeviceState.NOT_RESPONDING if hung else DeviceState.SEARCHING)
+    def _update_lost_state(self, exc: TransportError) -> None:
+        if isinstance(exc, DeviceInBootloaderError):
+            self._set_state(DeviceState.IN_BOOTLOADER)
+        elif self._may_be_hung:
+            self._set_state(DeviceState.NOT_RESPONDING)
+        else:
+            self._set_state(DeviceState.SEARCHING)
 
     def _step_disconnected(self, now: float) -> float:
         if now < self._next_attempt:
@@ -250,17 +276,18 @@ class DeviceManager:
                 self._last_failure = str(exc)
                 _log.info("device not available: %s", exc)
             self._note_failure(now, exc)
-            self._maybe_reset(now)
-            delay = RECONNECT_DELAYS_S[self._delay_index]
-            self._delay_index = min(self._delay_index + 1, len(RECONNECT_DELAYS_S) - 1)
+            self._maybe_reset(now, exc)
+            delay = self._next_delay(exc)
             self._next_attempt = now + delay
-            self._update_lost_state()
+            self._update_lost_state(exc)
             return delay
         _log.info("device connected, %d LEDs", self._connection.driver.led_count)
         self._last_failure = ""
         self._delay_index = 0
         self._may_be_hung = False
         self._failing_since = None
+        self._last_bootloader_reset = None
+        self._bootloader_resets = 0
         self._next_health_check = now + HEALTH_CHECK_INTERVAL_S
         self._set_state(DeviceState.CONNECTED)
         if self._last_frame is not None:
@@ -268,21 +295,51 @@ class DeviceManager:
                 self._pending = self._pending or self._last_frame
         return 0.0
 
-    def _maybe_reset(self, now: float) -> None:
-        if self._resetter is None or not self._may_be_hung or self._failing_since is None:
+    def _next_delay(self, failure: TransportError) -> float:
+        restarting = self._resetter is not None and self._bootloader_resets_left()
+        if isinstance(failure, DeviceInBootloaderError) and restarting:
+            return BOOTLOADER_POLL_S  # the device list costs next to nothing and opens nothing
+        delay = RECONNECT_DELAYS_S[self._delay_index]
+        self._delay_index = min(self._delay_index + 1, len(RECONNECT_DELAYS_S) - 1)
+        return delay
+
+    def _bootloader_resets_left(self) -> bool:
+        return self._bootloader_resets < BOOTLOADER_QUICK_RESETS
+
+    def _maybe_reset(self, now: float, failure: TransportError) -> None:
+        if self._resetter is None:
             return
-        if now - self._failing_since < RESET_AFTER_S:
+        if isinstance(failure, DeviceInBootloaderError):
+            if not self._bootloader_reset_due(now):
+                return
+            self._last_bootloader_reset = now
+            self._bootloader_resets += 1
+            _log.warning("device is in its bootloader, restarting it")
+        elif self._hang_reset_due(now):
+            self._last_reset = now
+            _log.warning("device still silent, restarting it")
+        else:
             return
-        if self._last_reset is not None and now - self._last_reset < RESET_MIN_INTERVAL_S:
-            return
-        self._last_reset = now
-        _log.warning("device still silent, restarting it")
         try:
             self._resetter.reset()
         except OSError as exc:
             _log.warning("device restart failed: %s", exc)
             return
         self._delay_index = 0
+
+    def _hang_reset_due(self, now: float) -> bool:
+        if not self._may_be_hung or self._failing_since is None:
+            return False
+        if now - self._failing_since < RESET_AFTER_S:
+            return False
+        return self._last_reset is None or now - self._last_reset >= RESET_MIN_INTERVAL_S
+
+    def _bootloader_reset_due(self, now: float) -> bool:
+        if self._last_bootloader_reset is None:
+            return True
+        quick = self._bootloader_resets_left()
+        interval = BOOTLOADER_RESET_INTERVAL_S if quick else RESET_MIN_INTERVAL_S
+        return now - self._last_bootloader_reset >= interval
 
     def _close(self) -> None:
         connection, self._connection = self._connection, None

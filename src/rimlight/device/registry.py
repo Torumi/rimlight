@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from rimlight.device.discovery import EnumerateFn, HidDeviceInfo, find_devices, hid_enumerate
 from rimlight.device.driver import DeviceDriver
 from rimlight.device.drivers import BUILTIN_DRIVERS
+from rimlight.device.usb_nodes import present_usb_ids
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +50,11 @@ class DriverRegistry:
                 if any_interface or driver.match.matches(info):
                     found.append(SupportedDevice(info, driver))
         return found
+
+    def in_bootloader(self) -> type[DeviceDriver] | None:
+        """A driver whose device seems to be in its bootloader. Read-only: nothing is opened."""
+        present = present_usb_ids()
+        return next((d for d in self._drivers if d.bootloader in present), None)
 
 
 def default_registry() -> DriverRegistry:

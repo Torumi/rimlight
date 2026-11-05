@@ -23,6 +23,7 @@ from rimlight.device.drivers.strip_37fa_8202.protocol import (
     encode_led_count_query,
 )
 from rimlight.device.transport import DeviceNotRespondingError, TransportError
+from rimlight.device.usb_nodes import UsbId
 
 _log = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ VENDOR_ID: Final = 0x37FA
 PRODUCT_ID: Final = 0x8202
 USAGE_PAGE: Final = 0xFF00
 USAGE: Final = 0x01
+BOOTLOADER: Final = UsbId(0x4348, 0x55E0)
 
 # The device has no report IDs; hidapi takes a leading 0 in that case.
 _NO_REPORT_ID: Final = b"\x00"
@@ -45,6 +47,7 @@ class Strip37FA8202Driver(DeviceDriver):
     capabilities = DeviceCapabilities(
         reports_led_count=True, default_led_count=75, max_led_count=75
     )
+    bootloader = BOOTLOADER
 
     def initialize(self) -> None:
         """Query the LED count; frames of any other length have never been observed."""

@@ -8,6 +8,7 @@ from conftest import hid_entry
 from rimlight.device.driver import LedColors, solid
 from rimlight.device.drivers.fake import FakeDriver, FakeTransport
 from rimlight.device.manager import (
+    BOOTLOADER_QUICK_RESETS,
     HEALTH_CHECK_INTERVAL_S,
     RESET_AFTER_S,
     RESET_MIN_INTERVAL_S,
@@ -18,7 +19,14 @@ from rimlight.device.manager import (
     open_first_device,
 )
 from rimlight.device.registry import default_registry
-from rimlight.device.transport import DeviceNotRespondingError, TransportError
+from rimlight.device.transport import (
+    DeviceInBootloaderError,
+    DeviceNotRespondingError,
+    TransportError,
+)
+from rimlight.device.usb_nodes import UsbId
+
+BOOTLOADER = UsbId(0x4348, 0x55E0)
 
 
 class FakeWorld:
@@ -28,6 +36,10 @@ class FakeWorld:
         self.now = 1000.0
         self.present = True
         self.hung = False
+        self.in_bootloader = False
+        self.stuck_in_bootloader = False
+        self.reset_enters_bootloader = False
+        self.ignored_resets = 0
         self.resets = 0
         self.connects = 0
         self.reset_error: OSError | None = None
@@ -40,6 +52,8 @@ class FakeWorld:
 
     def connect(self) -> Connection:
         self.connects += 1
+        if self.in_bootloader:
+            raise DeviceInBootloaderError("device is in its bootloader")
         if not self.present:
             raise TransportError("no supported device found")
         if self.hung:
@@ -60,7 +74,12 @@ class FakeWorld:
         self.resets += 1
         if self.reset_error is not None:
             raise self.reset_error
+        if self.ignored_resets > 0:
+            self.ignored_resets -= 1
+            return
         self.hung = False
+        self.in_bootloader = self.stuck_in_bootloader or self.reset_enters_bootloader
+        self.reset_enters_bootloader = False
 
 
 def _use_transport(monkeypatch: pytest.MonkeyPatch, transport: FakeTransport) -> None:
@@ -215,6 +234,19 @@ def test_restart_is_not_repeated_too_often(world: FakeWorld) -> None:
     assert manager.state is DeviceState.NOT_RESPONDING
 
 
+def test_every_wake_may_restart_the_device_again(world: FakeWorld) -> None:
+    """Seen on the strip: two sleeps within a minute, and the second hung it like the first."""
+    manager = _manager(world)
+    manager.show(_red)
+    _run_for(manager, world, 1)
+    for expected in (1, 2, 3):
+        world.hang()
+        manager.notify_resume()
+        _run_for(manager, world, RESUME_SETTLE_S + RESET_AFTER_S + 15)
+        assert world.resets == expected
+        assert manager.state is DeviceState.CONNECTED
+
+
 def test_without_a_resetter_it_keeps_trying_and_recovers_on_replug(world: FakeWorld) -> None:
     manager = _manager(world, resetter=False)
     manager.show(_red)
@@ -260,6 +292,111 @@ def test_io_error_looks_like_an_unplug_and_does_not_restart(world: FakeWorld) ->
     _run_for(manager, world, HEALTH_CHECK_INTERVAL_S + 120)
     assert manager.state is DeviceState.SEARCHING
     assert world.resets == 0
+
+
+def test_bootloader_at_start_is_restarted_at_once_and_gets_the_frame(world: FakeWorld) -> None:
+    world.in_bootloader = True
+    manager = _manager(world)
+    manager.show(_red)
+    manager.step()
+    assert world.resets == 1
+    assert manager.state is DeviceState.IN_BOOTLOADER
+    _run_for(manager, world, 30)
+    assert manager.state is DeviceState.CONNECTED
+    assert world.states == [DeviceState.IN_BOOTLOADER, DeviceState.CONNECTED]
+    assert world.driver is not None
+    assert [f.tolist() for f in world.driver.frames] == [[[255, 0, 0]] * 3]
+
+
+def test_replug_into_the_bootloader_is_restarted(world: FakeWorld) -> None:
+    manager = _manager(world)
+    manager.show(_red)
+    _run_for(manager, world, 1)
+    world.transports[-1].fail_writes = TransportError("write failed")
+    world.present = False
+    _run_for(manager, world, HEALTH_CHECK_INTERVAL_S + 5)
+    assert manager.state is DeviceState.SEARCHING
+    assert world.resets == 0
+    world.present = True
+    world.in_bootloader = True
+    _run_for(manager, world, 60)
+    assert world.resets == 1
+    assert manager.state is DeviceState.CONNECTED
+    assert world.driver is not None
+    assert len(world.driver.frames) == 1
+
+
+def test_bootloader_without_a_resetter_is_reported_and_left_alone(world: FakeWorld) -> None:
+    world.in_bootloader = True
+    manager = _manager(world, resetter=False)
+    _run_for(manager, world, 300)
+    assert manager.state is DeviceState.IN_BOOTLOADER
+    assert world.resets == 0
+    world.in_bootloader = False
+    _run_for(manager, world, 100)
+    assert manager.state is DeviceState.CONNECTED
+
+
+def test_failed_bootloader_restart_is_not_fatal(world: FakeWorld) -> None:
+    world.in_bootloader = True
+    world.reset_error = OSError("task failed")
+    manager = _manager(world)
+    _run_for(manager, world, 5)
+    assert world.resets == 1
+    assert manager.state is DeviceState.IN_BOOTLOADER
+
+
+def test_restart_without_effect_is_soon_repeated(world: FakeWorld) -> None:
+    """Seen on the strip: right after a replug, the first restart left it in the bootloader."""
+    world.in_bootloader = True
+    world.ignored_resets = 1
+    manager = _manager(world)
+    _run_for(manager, world, 20)
+    assert world.resets == 2
+    assert manager.state is DeviceState.CONNECTED
+
+
+def test_a_restart_gets_time_to_finish_before_the_next(world: FakeWorld) -> None:
+    """Seen on the strip: up to 8 s until it is back under its own ID."""
+    world.in_bootloader = True
+    world.stuck_in_bootloader = True
+    manager = _manager(world)
+    _run_for(manager, world, 9)
+    assert world.resets == 1
+
+
+def test_bootloader_restarts_slow_down_if_they_do_not_help(world: FakeWorld) -> None:
+    """The ID is the chip maker's, so this may be another device being flashed on purpose."""
+    world.in_bootloader = True
+    world.stuck_in_bootloader = True
+    manager = _manager(world)
+    _run_for(manager, world, 200)
+    assert world.resets == BOOTLOADER_QUICK_RESETS
+    _run_for(manager, world, RESET_MIN_INTERVAL_S)
+    assert world.resets == BOOTLOADER_QUICK_RESETS + 1
+
+
+def test_each_replug_gets_a_quick_restart_again(world: FakeWorld) -> None:
+    manager = _manager(world)
+    _run_for(manager, world, 1)
+    for expected in range(1, BOOTLOADER_QUICK_RESETS + 3):
+        world.transports[-1].fail_writes = TransportError("write failed")
+        world.in_bootloader = True
+        _run_for(manager, world, HEALTH_CHECK_INTERVAL_S + 5)
+        assert world.resets == expected
+        assert manager.state is DeviceState.CONNECTED
+
+
+def test_hang_restart_does_not_delay_the_bootloader_restart(world: FakeWorld) -> None:
+    """A restart of a hung device can bring it up in the bootloader."""
+    manager = _manager(world)
+    _run_for(manager, world, 1)
+    world.hang()
+    world.reset_enters_bootloader = True
+    manager.notify_resume()
+    _run_for(manager, world, RESUME_SETTLE_S + RESET_AFTER_S + 30)
+    assert world.resets == 2
+    assert manager.state is DeviceState.CONNECTED
 
 
 def test_invalid_frame_is_dropped_without_losing_the_device(world: FakeWorld) -> None:
@@ -309,6 +446,34 @@ def test_open_first_device_closes_on_failure(
     with pytest.raises(DeviceNotRespondingError):  # recovery needs to see that it is silent
         open_first_device(default_registry())
     assert transport.is_open is False
+
+
+def test_open_first_device_never_opens_the_bootloader(
+    fake_enumeration: list[dict[str, Any]],
+    fake_usb_nodes: set[UsbId],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_transport(info: object) -> FakeTransport:
+        pytest.fail("the bootloader must not be opened")
+
+    monkeypatch.setattr("rimlight.device.manager.HidTransport", no_transport)
+    fake_usb_nodes.add(BOOTLOADER)
+    with pytest.raises(DeviceInBootloaderError):
+        open_first_device(default_registry())
+
+
+def test_open_first_device_prefers_the_device_over_a_bootloader(
+    fake_enumeration: list[dict[str, Any]],
+    fake_usb_nodes: set[UsbId],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Another device of the same chip maker can be in its bootloader next to a working strip."""
+    fake_enumeration.append(hid_entry())
+    fake_usb_nodes.add(BOOTLOADER)
+    transport = FakeTransport()
+    transport.pending_reads.extend([bytes.fromhex("8300020039"), bytes.fromhex("8300020039")])
+    _use_transport(monkeypatch, transport)
+    assert open_first_device(default_registry()).driver.led_count == 57
 
 
 def test_open_first_device_without_a_device(fake_enumeration: list[dict[str, Any]]) -> None:

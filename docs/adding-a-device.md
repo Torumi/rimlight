@@ -44,7 +44,9 @@ across `tests/`.
 3. **Extract fixtures**: short report bytes in `tests/fixtures/<device>/`, without serial numbers.
 4. **Write `protocol.py` and `driver.py`**: set `id`, `match` and `capabilities`, implement
    `initialize` and `_show`, and `set_brightness`, `set_power` or `read_led_count` if the device
-   has them. The engine emulates what `capabilities` says is missing.
+   has them. The engine emulates what `capabilities` says is missing. If the device can come up
+   under a second USB ID until it is restarted, set `bootloader`; rimlight then restarts that
+   node and never opens it.
 5. **Signal a dead device**: raise `DeviceNotRespondingError` if the device stops answering and
    `TransportError` on I/O failures or unexpected answers. `DeviceManager` handles only these, so
    a driver's own exceptions must not escape it.

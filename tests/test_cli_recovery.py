@@ -49,7 +49,9 @@ def test_enable_installs_the_task_and_turns_it_on(
     assert main(["recovery", "enable"]) == 0
     assert resetter.calls == ["install"]
     assert load(settings_path).settings.recovery.auto_reset is True
-    assert "ask for permission" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "ask for permission" in out
+    assert "4348:55E0" in out  # restarting another ID is a thing the user should know about
 
 
 def test_enable_with_the_task_present_asks_nothing(
