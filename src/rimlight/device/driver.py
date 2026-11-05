@@ -16,6 +16,7 @@ from numpy.typing import NDArray
 from rimlight.device.discovery import HidDeviceInfo
 from rimlight.device.rate_limit import RateLimiter
 from rimlight.device.transport import Transport
+from rimlight.device.usb_nodes import UsbId
 
 type LedColors = NDArray[np.uint8]
 """One RGB color per LED, shape (led_count, 3), in strip order."""
@@ -60,6 +61,10 @@ class DeviceDriver(ABC):
     """Stable identifier used in settings, e.g. "37fa:8202"."""
     match: ClassVar[DeviceMatch]
     capabilities: ClassVar[DeviceCapabilities]
+    bootloader: ClassVar[UsbId | None] = None
+    """USB ID the device can come up under instead of its own, until it is restarted. rimlight
+    never opens or writes to it: firmware stays with the vendor's app, and the only thing done
+    is restarting the USB node through the system."""
 
     def __init__(
         self, transport: Transport, led_count: int, *, rate_limiter: RateLimiter | None = None

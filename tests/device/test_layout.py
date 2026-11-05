@@ -71,6 +71,14 @@ def test_shared_modules_do_not_reach_into_device_directories(module: Path) -> No
         assert not device_imports
 
 
+@pytest.mark.parametrize("module", ["usb_nodes.py", "reset.py"])
+def test_restarting_a_node_cannot_talk_to_the_device(module: str) -> None:
+    """A bootloader is only ever restarted through the system: no HID and no transport here."""
+    imports = _imports(DEVICE / module)
+    assert "hid" not in imports
+    assert "rimlight.device.transport" not in imports
+
+
 @pytest.mark.parametrize("device_dir", REAL_DEVICE_DIRS, ids=_ids(REAL_DEVICE_DIRS))
 def test_protocol_is_pure(device_dir: Path) -> None:
     roots = {name.split(".")[0] for name in _imports(device_dir / "protocol.py")}

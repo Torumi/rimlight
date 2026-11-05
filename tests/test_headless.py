@@ -184,6 +184,34 @@ def test_cli_set_needs_something_to_set(
     assert "Nothing to set" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    ("resetter", "hint"),
+    [(None, "see `rimlight-cli recovery`"), (FakeResetter(True), "restarting it")],
+)
+def test_cli_run_explains_the_bootloader(
+    settings_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    resetter: FakeResetter | None,
+    hint: str,
+) -> None:
+    def fake_run(
+        settings: Settings, registry: object, *, resetter: object, wait: object, on_state: object
+    ) -> None:
+        assert callable(on_state)
+        on_state(DeviceState.IN_BOOTLOADER)
+
+    def available(registry: object, settings: object) -> FakeResetter | None:
+        return resetter
+
+    monkeypatch.setattr("rimlight.headless.run_with_defaults", fake_run)
+    monkeypatch.setattr("rimlight.headless.available_resetter", available)
+    monkeypatch.setattr("rimlight.logs.setup_logging", lambda: Path("x.log"))
+    monkeypatch.setattr("rimlight.logs.stop_logging", lambda: None)
+    assert main(["run"]) == 0
+    assert hint in capsys.readouterr().out
+
+
 def test_cli_run_reports_state_and_stops_on_ctrl_c(
     settings_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -25,7 +25,7 @@ def available_resetter(registry: DriverRegistry, settings: Settings) -> DeviceRe
     """The resetter, if the setting allows it and its task is set up."""
     if not settings.recovery.auto_reset:
         return None
-    resetter = create_resetter(registry.drivers[0].match)
+    resetter = create_resetter(registry.drivers[0])
     if resetter is None or not resetter.is_installed():
         return None
     return resetter

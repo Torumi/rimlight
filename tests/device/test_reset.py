@@ -7,6 +7,7 @@ from collections.abc import Sequence
 import pytest
 
 from rimlight.device.driver import DeviceMatch
+from rimlight.device.drivers.strip_37fa_8202 import Strip37FA8202Driver
 from rimlight.device.reset import (
     ScheduledTaskResetter,
     create_resetter,
@@ -16,9 +17,11 @@ from rimlight.device.reset import (
     task_name,
     uninstall_script,
 )
+from rimlight.device.usb_nodes import UsbId
 
 MATCH = DeviceMatch(0x37FA, 0x8202)
 TASK = "rimlight-restart-37fa-8202"
+BOOTLOADER = UsbId(0x4348, 0x55E0)
 
 
 class FakeRunner:
@@ -41,11 +44,39 @@ def test_task_name_comes_from_the_device() -> None:
     assert task_name(MATCH) == TASK
 
 
+def _node_pattern(command: str) -> str:
+    match = re.search(r"-Match '(.+?)'", command)
+    assert match is not None
+    return match[1]
+
+
 def test_restart_command_targets_only_the_devices_usb_node() -> None:
     command = restart_command(MATCH)
-    assert r"^USB\\VID_37FA&PID_8202\\" in command
+    pattern = _node_pattern(command)
+    assert re.search(pattern, "USB\\VID_37FA&PID_8202\\ANY")
+    assert not re.search(pattern, "USB\\VID_4348&PID_55E0\\ANY")
     assert "pnputil /restart-device" in command
     assert '"' not in command  # it goes inside a double-quoted command line
+
+
+def test_restart_command_also_targets_the_bootloader_node() -> None:
+    command = restart_command(MATCH, BOOTLOADER)
+    pattern = _node_pattern(command)
+    assert re.search(pattern, "USB\\VID_37FA&PID_8202\\ANY")
+    assert re.search(pattern, "USB\\VID_4348&PID_55E0\\ANY")
+    assert not re.search(pattern, "USB\\VID_046D&PID_C53F\\ANY")
+    assert not re.search(pattern, "HID\\VID_4348&PID_55E0\\ANY")
+    assert '"' not in command
+
+
+def test_task_restarts_the_bootloader_node_the_driver_declares() -> None:
+    assert Strip37FA8202Driver.bootloader == BOOTLOADER
+    resetter = create_resetter(Strip37FA8202Driver)
+    if sys.platform == "win32":
+        assert isinstance(resetter, ScheduledTaskResetter)
+        run = FakeRunner()
+        ScheduledTaskResetter(MATCH, bootloader=BOOTLOADER, run=run).install()
+        assert _decoded_script(run.commands[0]) == install_script(MATCH, BOOTLOADER)
 
 
 def test_task_runs_only_a_system_binary_as_system() -> None:
@@ -58,7 +89,10 @@ def test_task_runs_only_a_system_binary_as_system() -> None:
 
 @pytest.mark.slow
 @pytest.mark.skipif(sys.platform != "win32", reason="needs PowerShell")
-@pytest.mark.parametrize("script", [install_script(MATCH), uninstall_script(MATCH)])
+@pytest.mark.parametrize(
+    "script",
+    [install_script(MATCH), install_script(MATCH, BOOTLOADER), uninstall_script(MATCH)],
+)
 def test_scripts_are_valid_powershell(script: str) -> None:
     """Parsed only, never run."""
     check = (
@@ -121,5 +155,5 @@ def test_refused_uac_prompt_is_an_oserror() -> None:
 
 
 def test_resetter_exists_only_on_windows() -> None:
-    resetter = create_resetter(MATCH)
+    resetter = create_resetter(Strip37FA8202Driver)
     assert (resetter is not None) == (sys.platform == "win32")

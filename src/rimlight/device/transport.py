@@ -26,6 +26,10 @@ class DeviceNotRespondingError(TransportError):
     """The device did not answer in time, even if writes still succeed."""
 
 
+class DeviceInBootloaderError(TransportError):
+    """The device came up in its bootloader and does not work until it is restarted."""
+
+
 class Transport(ABC):
     @abstractmethod
     def open(self) -> None: ...

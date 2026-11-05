@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from rimlight.device.drivers.strip_37fa_8202.driver import PRODUCT_ID, USAGE_PAGE, VENDOR_ID
+from rimlight.device.usb_nodes import UsbId
 
 
 def hid_entry(**overrides: Any) -> dict[str, Any]:
@@ -26,7 +27,17 @@ def hid_entry(**overrides: Any) -> dict[str, Any]:
 
 
 @pytest.fixture
-def fake_enumeration(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+def fake_usb_nodes(monkeypatch: pytest.MonkeyPatch) -> set[UsbId]:
+    """Replace the system's USB device list with a set the test fills in."""
+    nodes: set[UsbId] = set()
+    monkeypatch.setattr("rimlight.device.registry.present_usb_ids", lambda: frozenset(nodes))
+    return nodes
+
+
+@pytest.fixture
+def fake_enumeration(
+    monkeypatch: pytest.MonkeyPatch, fake_usb_nodes: set[UsbId]
+) -> list[dict[str, Any]]:
     """Replace `hid.enumerate` with a list the test fills in. Hardware is never touched."""
     entries: list[dict[str, Any]] = []
 

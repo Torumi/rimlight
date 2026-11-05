@@ -60,7 +60,8 @@ def _cmd_recovery(args: argparse.Namespace) -> int:
 
     # Loading settings pulls in pydantic, so only commands that need them import it.
     settings = load().settings
-    resetter = create_resetter(default_registry().drivers[0].match)
+    driver = default_registry().drivers[0]
+    resetter = create_resetter(driver)
     if resetter is None:
         print("Automatic device restart is not available on this system yet.", file=sys.stderr)
         return 0 if args.action == "status" else 1
@@ -77,6 +78,13 @@ def _cmd_recovery(args: argparse.Namespace) -> int:
                         "Windows will now ask for permission for PowerShell: it registers a task "
                         "that restarts the device. This is asked only once."
                     )
+                    if driver.bootloader is not None:
+                        print(
+                            f"While the device is missing, the task also restarts USB devices "
+                            f"with the ID {driver.bootloader}: its bootloader. That ID is the chip "
+                            f"maker's, so another device with it would be restarted too. Nothing "
+                            f"is ever written to them."
+                        )
                     resetter.install()
                 set_auto_reset(True)
                 print("Automatic restart is on.")
@@ -139,8 +147,19 @@ def _cmd_run(_args: argparse.Namespace) -> int:
         logging.getLogger(__name__).warning("settings: %s", problem)
         print(f"Settings: {problem}", file=sys.stderr)
 
+    registry = default_registry()
+    resetter = available_resetter(registry, result.settings)
+    hints = {
+        DeviceState.SEARCHING: "device not found; still looking",
+        DeviceState.IN_BOOTLOADER: (
+            "device is in its bootloader; restarting it"
+            if resetter is not None
+            else "device is in its bootloader and needs a restart; see `rimlight-cli recovery`"
+        ),
+    }
+
     def on_state(state: DeviceState) -> None:
-        hint = "  (device not found; still looking)" if state is DeviceState.SEARCHING else ""
+        hint = f"  ({hints[state]})" if state in hints else ""
         print(f"{time.strftime('%H:%M:%S')} {state.name}{hint}", flush=True)
 
     def wait() -> None:
@@ -151,8 +170,6 @@ def _cmd_run(_args: argparse.Namespace) -> int:
         except KeyboardInterrupt:
             pass
 
-    registry = default_registry()
-    resetter = available_resetter(registry, result.settings)
     if resetter is not None:
         print("Automatic restart of a hung device: on.")
     else:

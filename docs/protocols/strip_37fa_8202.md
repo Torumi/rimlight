@@ -191,8 +191,32 @@ Conclusions for recovery (issue #21, **confirmed** on one PC):
   answer** within a timeout is.
 - Reopening the handle does not help. Restarting the device does. That needs administrator rights
   on Windows, but a scheduled task lets a normal user trigger it after one elevated setup.
+- It happens on every sleep: two sleeps within a minute in one `rimlight-cli run` session
+  (2026-11-05) each left it silent, the first recovered by the restart task about 19 s
+  after waking.
 - Earlier, outside these captures, the HID node showed Code 28 after resume. Not observed
-  in these runs; recorded as a possible second form of the same failure.
+  in these runs; recorded as a possible second form of the same failure. See the bootloader
+  mode below, which shows the same code.
+
+### Bootloader mode (`4348:55E0`)
+
+Observed on the device, Windows, one PC, 2026-11-04; no capture, seen in the Windows device list:
+
+- After unplugging and replugging the cable the strip appears as `USB\VID_4348&PID_55E0`
+  instead of `37FA:8202`, with Code 28 (no driver) and no HID interface, so hidapi cannot see
+  it. This happened 5 of 5 times with rimlight stopped and 5 of 5 with `rimlight-cli run`
+  running, so rimlight does not cause it.
+- An elevated `pnputil /restart-device` on that node brings back `37FA:8202`. Through the
+  scheduled task, in `rimlight-cli run`, it was back within 8 s in 3 of 4 restarts. The other
+  restart, under 5 s after the node appeared, left it in this mode for at least 18 s, although
+  a repeat worked; the cause is unknown, and the Windows event logs had nothing on it.
+- The ID looks like a chip maker's bootloader rather than this product's (an assumption, from
+  the vendor ID), so **another device can have the same ID**.
+
+rimlight **never opens or writes to this device**: no report of any kind, and firmware stays with
+the vendor's app. If the strip is missing, this node is present and automatic restart is on,
+the only action is that same node restart. It repeats after 12 s, and after 3 restarts
+without success only every 5 minutes, in case this is another device being flashed.
 
 ## 6. Unknown
 
@@ -226,3 +250,10 @@ sending only `0x03` and `0x02`:
    Only matters if the strip is cut again.
 4. Is there a time limit beyond the observed 30 s without frames? (Sleep/resume aside.)
 5. What is the lowest visible color level?
+6. When does the strip come up in bootloader mode? Replugging does it every time (direct to the
+   port, one PC). Port cycles in `09` came back as `37FA:8202` (frames 12 and 60). `00-plug-in` does
+   not show the moment of plugging in: its only device descriptor is at 0 s, as in `01`-`08`, where
+   nothing was replugged. So losing power may be the trigger, which would also mean power-on of the
+   PC when USB power was off. After a shutdown that kept power on the port (the strip's LED
+   kept blinking) it came up normally (one run), which fits but does not prove this. Power-on
+   with USB power off and other PCs are untested.
