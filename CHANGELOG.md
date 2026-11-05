@@ -25,6 +25,7 @@ are listed on the GitHub Releases page; this file collects them into each stable
 
 ### Refactoring
 - **device:** Separate shared code from per-device drivers (#74)
+- **config:** Remove the LED count setting (#88)
 
 ### Documentation
 - Document branching and release process
@@ -33,6 +34,7 @@ are listed on the GitHub Releases page; this file collects them into each stable
 - **protocol:** Document framing, color frames and init from captures 00-09 (#72)
 - **protocol:** Record that the strip hangs after every S3 sleep (#78)
 - **protocol:** Restart the strip through a scheduled task (#79)
+- Describe what works in the README (#89)
 
 ### Build and CI
 - Add release automation workflows and rulesets
