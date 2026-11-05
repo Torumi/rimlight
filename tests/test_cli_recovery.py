@@ -102,9 +102,9 @@ def test_status(
 
 def test_other_settings_survive(settings_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _use(monkeypatch, FakeResetter(installed=True))
-    save(Settings.model_validate({"device": {"led_count": 57}}), settings_path)
+    save(Settings.model_validate({"device": {"max_fps": 30}}), settings_path)
     assert main(["recovery", "disable"]) == 0
-    assert load(settings_path).settings.device.led_count == 57
+    assert load(settings_path).settings.device.max_fps == 30
 
 
 def test_unavailable_platform(

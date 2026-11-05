@@ -59,16 +59,6 @@
       ]
     },
     {
-      "id": "A12", "moscow": "Must", "milestone": "0.1",
-      "title": "LED count setting",
-      "labels": ["area: device"],
-      "summary": "The number of LEDs is a user setting (strips can be cut); it is never hard-coded.",
-      "done_when": [
-        "Setting with default 75 and validation, used by every encoder",
-        "Changing it applies without restarting the app"
-      ]
-    },
-    {
       "id": "A8", "moscow": "Must", "milestone": "0.1",
       "title": "Reconnect after unplugging and replugging (Windows)",
       "labels": ["area: device", "os: windows"],
@@ -180,7 +170,7 @@
       "id": "A15", "moscow": "Should", "milestone": "0.1",
       "title": "Detect the LED count automatically",
       "labels": ["area: device", "protocol"],
-      "summary": "If the protocol exposes the LED count, use it as the default; the manual setting (A12) stays as an override.",
+      "summary": "If the protocol exposes the LED count, use it; there is no manual setting (see A12 in the roadmap).",
       "done_when": [
         "Captures show whether the device reports its length; if not, close this as not possible and rely on calibration (C2)"
       ]
